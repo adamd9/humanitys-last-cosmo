@@ -23,6 +23,7 @@ def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonne
     run_id = uuid.uuid4().hex
     adapters = []
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
+    results_dir = Path("results/mock" if use_mocks else "results")
     for m in models.split(","):
         provider, model = m.split(":", 1)
         if use_mocks:
@@ -36,7 +37,7 @@ def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonne
         quiz_path=quiz,
         adapters=adapters,
         run_id=run_id,
-        results_dir=Path("results"),
+        results_dir=results_dir,
     )
     typer.echo(f"Run ID: {run_id}")
 
@@ -59,6 +60,11 @@ def quiz_convert(text_file: Path, model: str = "gpt-4o") -> None:
 @app.command("quiz:report")
 def quiz_report(run_id: str, results_dir: Path = Path("results")) -> None:
     """Generate Markdown and CSV summaries for a run."""
+    if (
+        results_dir == Path("results")
+        and os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
+    ):
+        results_dir = Path("results/mock")
     reporter.generate_markdown_report(run_id, results_dir)
 
 
