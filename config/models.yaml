@@ -1,0 +1,18 @@
+models:
+  - id: openai:gpt-4o
+    provider: openai
+    model: gpt-4o
+    apiKeyEnv: OPENAI_API_KEY
+    defaultParams:
+      temperature: 0.2
+      top_p: 1.0
+      max_tokens: 256
+    maxConcurrency: 2
+  - id: anthropic:claude-3-5-sonnet
+    provider: anthropic
+    model: claude-3-5-sonnet
+    apiKeyEnv: ANTHROPIC_API_KEY
+    defaultParams:
+      temperature: 0.2
+      max_tokens: 256
+    maxConcurrency: 2
