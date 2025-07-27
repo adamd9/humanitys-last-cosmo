@@ -1,8 +1,8 @@
 import json
-from typing import Any, Optional
+from typing import Any
 
 
-def parse_choice_json(text: str) -> Optional[dict[str, Any]]:
+def parse_choice_json(text: str) -> dict[str, Any] | None:
     """Parse the model response for choice JSON."""
     try:
         return json.loads(text.strip())

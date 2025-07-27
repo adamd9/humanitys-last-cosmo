@@ -1,30 +1,43 @@
 from __future__ import annotations
 
+import os
 import uuid
 from pathlib import Path
 
 import typer
 
 from ..adapters.anthropic_adapter import AnthropicAdapter
+from ..adapters.mock_adapter import MockAdapter
 from ..adapters.openai_adapter import OpenAIAdapter
+from ..core import reporter
 from ..core.quiz_converter import text_to_yaml
 from ..core.runner import run_sync
-from ..core import reporter
 
 app = typer.Typer()
 
 
 @app.command("quiz:run")
 def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonnet") -> None:
+    """Run a quiz with the specified models."""
+
     run_id = uuid.uuid4().hex
     adapters = []
+    use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
     for m in models.split(","):
         provider, model = m.split(":", 1)
-        if provider == "openai":
+        if use_mocks:
+            adapters.append(MockAdapter(model=f"{provider}:{model}"))
+        elif provider == "openai":
             adapters.append(OpenAIAdapter(model=model, api_key_env="OPENAI_API_KEY"))
         elif provider == "anthropic":
             adapters.append(AnthropicAdapter(model=model, api_key_env="ANTHROPIC_API_KEY"))
-    run_sync(quiz_path=quiz, adapters=adapters, run_id=run_id, results_dir=Path("results"))
+
+    run_sync(
+        quiz_path=quiz,
+        adapters=adapters,
+        run_id=run_id,
+        results_dir=Path("results"),
+    )
     typer.echo(f"Run ID: {run_id}")
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Protocol, TypedDict, List, Dict
+from typing import Protocol, TypedDict
 
 
 class ChatResponse(TypedDict, total=False):
@@ -13,5 +13,6 @@ class ChatResponse(TypedDict, total=False):
 class ChatAdapter(Protocol):
     id: str
 
-    async def send(self, messages: List[Dict[str, str]], params: Dict | None = None) -> ChatResponse:
-        ...
+    async def send(
+        self, messages: list[dict[str, str]], params: dict | None = None
+    ) -> ChatResponse: ...

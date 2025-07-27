@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import os
 import time
-from typing import List, Dict
 
 import httpx
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
 
-from .base import ChatAdapter, ChatResponse
+from .base import ChatResponse
 
 
 class OpenAIAdapter:
@@ -22,7 +21,7 @@ class OpenAIAdapter:
         )
 
     async def send(
-        self, messages: List[Dict[str, str]], params: Dict | None = None
+        self, messages: list[dict[str, str]], params: dict | None = None
     ) -> ChatResponse:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         payload = {

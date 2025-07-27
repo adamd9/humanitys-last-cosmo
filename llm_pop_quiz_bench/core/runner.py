@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
-from typing import Dict, List
 
 import yaml
 
@@ -14,8 +13,10 @@ from .types import QAResult
 from .utils import parse_choice_json
 
 
-async def run_quiz(quiz_path: Path, adapters: List[ChatAdapter], run_id: str, results_dir: Path) -> None:
-    with open(quiz_path, "r", encoding="utf-8") as f:
+async def run_quiz(
+    quiz_path: Path, adapters: list[ChatAdapter], run_id: str, results_dir: Path
+) -> None:
+    with open(quiz_path, encoding="utf-8") as f:
         quiz = yaml.safe_load(f)
 
     questions = quiz["questions"]
