@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+import httpx
 import openai
 
 PROMPT = (
@@ -17,7 +18,9 @@ def text_to_yaml(text: str, model: str = "gpt-4o", api_key_env: str = "OPENAI_AP
     api_key = os.environ.get(api_key_env)
     if not api_key:
         raise RuntimeError(f"Missing {api_key_env} environment variable")
-    client = openai.OpenAI(api_key=api_key)
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+    http_client = httpx.Client(proxies=proxy) if proxy else None
+    client = openai.OpenAI(api_key=api_key, http_client=http_client)
     messages = [
         {"role": "system", "content": PROMPT},
         {"role": "user", "content": text},
