@@ -11,29 +11,6 @@ from .scorer import infer_mostly_letter, infer_mostly_tag
 from .store import read_jsonl, write_csv
 
 
-def add_cost_estimates(df: pd.DataFrame, pricing_file: Path | None = None) -> pd.DataFrame:
-    """Return DataFrame with `est_cost_usd` computed from token counts."""
-    if pricing_file is None:
-        pricing_file = Path("config/pricing.yaml")
-    if pricing_file.exists():
-        pricing = yaml.safe_load(pricing_file.read_text(encoding="utf-8"))
-        prices = pricing.get("prices", {})
-    else:
-        prices = {}
-    costs = []
-    for _, row in df.iterrows():
-        price = prices.get(row.get("model_id"), {})
-        in_cost = price.get("input_per_1k", 0.0)
-        out_cost = price.get("output_per_1k", 0.0)
-        tokens_in = row.get("tokens_in") or 0
-        tokens_out = row.get("tokens_out") or 0
-        cost = tokens_in / 1000 * in_cost + tokens_out / 1000 * out_cost
-        costs.append(cost)
-    df = df.copy()
-    df["est_cost_usd"] = costs
-    return df
-
-
 def render_outcomes_table(quiz_title: str, outcomes: Iterable[tuple[str, str]]) -> str:
     lines = ["| Model | Outcome |", "|-------|---------|"]
     for model_id, outcome in outcomes:
@@ -132,7 +109,6 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
     df = load_results(run_id, results_dir)
     if df.empty:
         raise ValueError(f"No results for run {run_id}")
-    df = add_cost_estimates(df)
     summary_dir = results_dir / "summary"
     summary_dir.mkdir(parents=True, exist_ok=True)
     write_summary_csv(summary_dir / f"{run_id}.csv", df.to_dict(orient="records"))

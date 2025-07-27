@@ -33,7 +33,7 @@ A complete, implementation-ready brief to build a Python project that runs **mag
 - Multi-model runs with adapters for: **OpenAI, Anthropic, Google (Gemini), Cohere, AI21**, and a **generic HTTP** adapter for hosted OSS (Llama/Mistral).
 - Config-first (`config/*.yaml`) with repeatable sampling (temperature/top_p/seed when supported).
 - Resilient execution (timeouts, retries, backoff, rate-limit handling).
-- Observability: token usage (if available), latency, cost estimation, refusal detection.
+- Observability: token usage (if available), latency, refusal detection.
 - Determinism knobs; repetition (N runs per quiz/model) for stability analysis.
 
 ---
@@ -71,7 +71,6 @@ llm-pop-quiz-bench-py/
   config/
     models.yaml
     run.yaml
-    pricing.yaml
   results/
     raw/
     summary/
@@ -261,30 +260,6 @@ sampling_overrides:
     temperature: 0.2
 ```
 
-### 5.3 `config/pricing.yaml`
-(Used for cost estimates if token counts are returned or estimated)
-
-```yaml
-prices:
-  openai:gpt-4o:
-    input_per_1k: 0.0
-    output_per_1k: 0.0
-  anthropic:claude-3-5-sonnet:
-    input_per_1k: 0.0
-    output_per_1k: 0.0
-  google:gemini-1.5-pro:
-    input_per_1k: 0.0
-    output_per_1k: 0.0
-  cohere:command-r-plus:
-    input_per_1k: 0.0
-    output_per_1k: 0.0
-  ai21:j2-mid:
-    input_per_1k: 0.0
-    output_per_1k: 0.0
-```
-
-> Fill actual prices as desired. If a provider returns token usage, use those; otherwise heuristics.
-
 ---
 
 ## 6) Quiz Format (YAML)
@@ -443,13 +418,13 @@ Expose helpers:
 - `total_score()`
 
 ### Reporter (`core/reporter.py`)
-Emit:
-- **CSV columns**: `run_id, quiz_id, model_id, question_id, choice, refused, latency_ms, tokens_in, tokens_out, est_cost_usd`
+- Emit:
+- **CSV columns**: `run_id, quiz_id, model_id, question_id, choice, refused, latency_ms, tokens_in, tokens_out`
 - **Markdown** per quiz:
   - Title + source URL
   - **Model → outcome** table
   - **Per-question choices** table
-  - Observations (refusals, funny rationales), token usage, cost estimates
+  - Observations (refusals, funny rationales), token usage
 
 ---
 
