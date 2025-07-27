@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, List
 
 
 def write_jsonl(path: Path, records: Iterable[dict]) -> None:
@@ -17,6 +17,14 @@ def append_jsonl(path: Path, record: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def read_jsonl(path: Path) -> List[dict]:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
 
 
 def write_csv(path: Path, rows: Iterable[dict]) -> None:

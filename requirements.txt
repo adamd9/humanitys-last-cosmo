@@ -11,6 +11,7 @@ anthropic
 google-generativeai
 cohere
 ai21
+matplotlib
 pytest
 pytest-asyncio
 respx
