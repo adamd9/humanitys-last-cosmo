@@ -1,5 +1,7 @@
-import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-import json
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from llm_pop_quiz_bench.core import utils
 
 
@@ -10,7 +12,7 @@ def test_parse_strict_json_ok():
 
 
 def test_parse_with_extra_text():
-    txt = "Sure! Here you go:\n{\"choice\":\"A\",\"reason\":\"Why not.\"}\nThanks!"
+    txt = 'Sure! Here you go:\n{"choice":"A","reason":"Why not."}\nThanks!'
     data = utils.parse_choice_json(txt)
     assert data["choice"] == "A"
 

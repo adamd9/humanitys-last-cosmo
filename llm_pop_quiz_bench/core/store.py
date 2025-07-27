@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 
 def write_jsonl(path: Path, records: Iterable[dict]) -> None:
@@ -19,7 +19,7 @@ def append_jsonl(path: Path, record: dict) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def read_jsonl(path: Path) -> List[dict]:
+def read_jsonl(path: Path) -> list[dict]:
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         return []

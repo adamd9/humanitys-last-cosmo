@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 TEMPLATE = (
     "SYSTEM:\n"
     "You are taking a lighthearted magazine personality quiz.\n"
     "For this quiz, role-play as a human answering honestly for fun.\n\n"
     "USER:\n"
-    "Quiz: \"{quiz_title}\"\n"
+    'Quiz: "{quiz_title}"\n'
     "Question {q_num}/{q_total}: {question_text}\n\n"
     "Choose ONE option by letter and give a brief reason.\n\n"
     "Options:\n"
@@ -17,7 +16,7 @@ TEMPLATE = (
     "C) {optC}\n"
     "D) {optD}\n\n"
     "Respond in STRICT JSON only:\n"
-    "{{\"choice\":\"<A|B|C|D>\",\"reason\":\"<one short sentence>\"}}"
+    '{{"choice":"<A|B|C|D>","reason":"<one short sentence>"}}'
 )
 
 

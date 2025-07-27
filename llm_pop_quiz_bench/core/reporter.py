@@ -1,17 +1,40 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, Tuple, List, Dict
 
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 import yaml
 
-from .store import write_csv, read_jsonl
-from .scorer import compute_choice_histogram, infer_mostly_letter, infer_mostly_tag
+from .scorer import infer_mostly_letter, infer_mostly_tag
+from .store import read_jsonl, write_csv
 
 
-def render_outcomes_table(quiz_title: str, outcomes: Iterable[Tuple[str, str]]) -> str:
+def add_cost_estimates(df: pd.DataFrame, pricing_file: Path | None = None) -> pd.DataFrame:
+    """Return DataFrame with `est_cost_usd` computed from token counts."""
+    if pricing_file is None:
+        pricing_file = Path("config/pricing.yaml")
+    if pricing_file.exists():
+        pricing = yaml.safe_load(pricing_file.read_text(encoding="utf-8"))
+        prices = pricing.get("prices", {})
+    else:
+        prices = {}
+    costs = []
+    for _, row in df.iterrows():
+        price = prices.get(row.get("model_id"), {})
+        in_cost = price.get("input_per_1k", 0.0)
+        out_cost = price.get("output_per_1k", 0.0)
+        tokens_in = row.get("tokens_in") or 0
+        tokens_out = row.get("tokens_out") or 0
+        cost = tokens_in / 1000 * in_cost + tokens_out / 1000 * out_cost
+        costs.append(cost)
+    df = df.copy()
+    df["est_cost_usd"] = costs
+    return df
+
+
+def render_outcomes_table(quiz_title: str, outcomes: Iterable[tuple[str, str]]) -> str:
     lines = ["| Model | Outcome |", "|-------|---------|"]
     for model_id, outcome in outcomes:
         lines.append(f"| {model_id} | {outcome} |")
@@ -24,7 +47,7 @@ def write_summary_csv(path: Path, rows: Iterable[dict]) -> None:
 
 
 def load_results(run_id: str, results_dir: Path) -> pd.DataFrame:
-    rows: List[Dict] = []
+    rows: list[dict] = []
     for path in (results_dir / "raw").glob(f"{run_id}.*.jsonl"):
         parts = path.stem.split(".")
         if len(parts) < 3:
@@ -48,7 +71,7 @@ def render_question_table(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def compute_model_outcomes(df: pd.DataFrame, quiz_def: dict) -> List[Dict[str, str]]:
+def compute_model_outcomes(df: pd.DataFrame, quiz_def: dict) -> list[dict[str, str]]:
     lookup = {}
     for q in quiz_def.get("questions", []):
         for opt in q.get("options", []):
@@ -57,7 +80,7 @@ def compute_model_outcomes(df: pd.DataFrame, quiz_def: dict) -> List[Dict[str, s
     outcomes = []
     for model_id, g in df.groupby("model_id"):
         letter_hist = g["choice"].value_counts().to_dict()
-        tag_hist: Dict[str, int] = {}
+        tag_hist: dict[str, int] = {}
         score = 0
         for _, row in g.iterrows():
             opt = lookup.get((row["question_id"], row["choice"]))
@@ -87,9 +110,9 @@ def compute_model_outcomes(df: pd.DataFrame, quiz_def: dict) -> List[Dict[str, s
     return outcomes
 
 
-def generate_charts(df: pd.DataFrame, out_dir: Path, run_id: str, quiz_id: str) -> Dict[str, Path]:
+def generate_charts(df: pd.DataFrame, out_dir: Path, run_id: str, quiz_id: str) -> dict[str, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    paths: Dict[str, Path] = {}
+    paths: dict[str, Path] = {}
     for model_id, g in df.groupby("model_id"):
         hist = g["choice"].value_counts().sort_index()
         fig, ax = plt.subplots()
@@ -109,6 +132,7 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
     df = load_results(run_id, results_dir)
     if df.empty:
         raise ValueError(f"No results for run {run_id}")
+    df = add_cost_estimates(df)
     summary_dir = results_dir / "summary"
     summary_dir.mkdir(parents=True, exist_ok=True)
     write_summary_csv(summary_dir / f"{run_id}.csv", df.to_dict(orient="records"))
@@ -119,7 +143,11 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
         outcomes = compute_model_outcomes(qdf, quiz_def)
         md_lines = [f"# {quiz_def['title']}", f"Source: {quiz_def['source']['url']}"]
         md_lines.append("\n## Outcomes")
-        md_lines.append(render_outcomes_table(quiz_def["title"], [(o["model_id"], o["outcome"]) for o in outcomes]))
+        md_lines.append(
+            render_outcomes_table(
+                quiz_def["title"], [(o["model_id"], o["outcome"]) for o in outcomes]
+            )
+        )
         md_lines.append("\n## Choices by Question")
         md_lines.append(render_question_table(qdf))
 
@@ -131,4 +159,3 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
         md_content = "\n".join(md_lines)
         md_file = summary_dir / f"{run_id}.{quiz_id}.md"
         md_file.write_text(md_content, encoding="utf-8")
-

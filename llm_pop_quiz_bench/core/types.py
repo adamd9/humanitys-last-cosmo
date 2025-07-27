@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
 
 
 @dataclass
@@ -8,7 +7,7 @@ class ModelConfig:
     provider: str
     model: str
     apiKeyEnv: str
-    defaultParams: Dict[str, object] = field(default_factory=dict)
+    defaultParams: dict[str, object] = field(default_factory=dict)
     maxConcurrency: int = 1
 
 
@@ -16,21 +15,21 @@ class ModelConfig:
 class QuizOption:
     id: str
     text: str
-    tags: List[str] = field(default_factory=list)
-    score: Optional[int] = None
+    tags: list[str] = field(default_factory=list)
+    score: int | None = None
 
 
 @dataclass
 class QuizQuestion:
     id: str
     text: str
-    options: List[QuizOption]
+    options: list[QuizOption]
 
 
 @dataclass
 class OutcomeRule:
     id: str
-    condition: Dict[str, object]
+    condition: dict[str, object]
     result: str
 
 
@@ -38,10 +37,10 @@ class OutcomeRule:
 class QuizDefinition:
     id: str
     title: str
-    source: Dict[str, str]
+    source: dict[str, str]
     notes: str
-    questions: List[QuizQuestion]
-    outcomes: List[OutcomeRule]
+    questions: list[QuizQuestion]
+    outcomes: list[OutcomeRule]
 
 
 @dataclass
@@ -50,9 +49,9 @@ class QAResult:
     choice: str
     reason: str
     refused: bool = False
-    latency_ms: Optional[int] = None
-    tokens_in: Optional[int] = None
-    tokens_out: Optional[int] = None
+    latency_ms: int | None = None
+    tokens_in: int | None = None
+    tokens_out: int | None = None
 
 
 @dataclass

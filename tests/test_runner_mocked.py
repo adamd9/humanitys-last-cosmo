@@ -1,21 +1,13 @@
-import sys, pathlib; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import asyncio
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import yaml
 
+from llm_pop_quiz_bench.adapters.mock_adapter import MockAdapter
 from llm_pop_quiz_bench.core.runner import run_quiz
-
-
-class MockAdapter:
-    id = "mock:adapter"
-
-    async def send(self, messages, params=None):
-        return {
-            "text": '{"choice":"C","reason":"Fun."}',
-            "tokens_in": 10,
-            "tokens_out": 5,
-            "latency_ms": 50,
-        }
 
 
 async def _run(tmp_path: Path):
