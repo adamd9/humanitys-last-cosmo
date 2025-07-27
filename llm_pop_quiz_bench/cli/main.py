@@ -9,6 +9,7 @@ from ..adapters.anthropic_adapter import AnthropicAdapter
 from ..adapters.openai_adapter import OpenAIAdapter
 from ..core.quiz_converter import text_to_yaml
 from ..core.runner import run_sync
+from ..core import reporter
 
 app = typer.Typer()
 
@@ -40,6 +41,12 @@ def quiz_convert(text_file: Path, model: str = "gpt-4o") -> None:
     out_path = text_file.with_suffix(".yaml")
     out_path.write_text(yaml_text, encoding="utf-8")
     typer.echo(f"YAML written to {out_path}")
+
+
+@app.command("quiz:report")
+def quiz_report(run_id: str, results_dir: Path = Path("results")) -> None:
+    """Generate Markdown and CSV summaries for a run."""
+    reporter.generate_markdown_report(run_id, results_dir)
 
 
 if __name__ == "__main__":
