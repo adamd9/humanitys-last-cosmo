@@ -1,0 +1,3 @@
+{"question_id": "q1", "choice": "A", "reason": "A calm, logical problem-solver would help us find a way out efficiently.", "refused": false, "latency_ms": 1505, "tokens_in": 134, "tokens_out": 28}
+{"question_id": "q2", "choice": "D", "reason": "The family dog always brings joy and no drama.", "refused": false, "latency_ms": 1014, "tokens_in": 130, "tokens_out": 18}
+{"question_id": "q3", "choice": "A", "reason": "I love singing along to powerful ballads.", "refused": false, "latency_ms": 1218, "tokens_in": 128, "tokens_out": 21}

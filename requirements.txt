@@ -4,6 +4,7 @@ tenacity
 PyYAML
 pandas
 python-dateutil
+python-dotenv
 tqdm
 structlog
 openai

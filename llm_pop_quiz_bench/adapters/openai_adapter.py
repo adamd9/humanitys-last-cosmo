@@ -17,9 +17,14 @@ class OpenAIAdapter:
         self.model = model
         self.api_key = os.environ.get(api_key_env, "")
         proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
-        self.client = httpx.AsyncClient(
-            base_url="https://api.openai.com/v1", proxies=proxy if proxy else None
-        )
+        if proxy:
+            self.client = httpx.AsyncClient(
+                base_url="https://api.openai.com/v1", proxy=proxy
+            )
+        else:
+            self.client = httpx.AsyncClient(
+                base_url="https://api.openai.com/v1"
+            )
 
     async def send(
         self, messages: list[dict[str, str]], params: Union[dict, None] = None

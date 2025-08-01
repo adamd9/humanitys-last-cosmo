@@ -6,7 +6,7 @@ source:
 notes: Paraphrased three-question quiz with per-option interpretations.
 questions:
   - id: q1
-    text: In a haunted house, choose a leading lady to help you escape:
+    text: "In a haunted house, choose a leading lady to help you escape:"
     options:
       - id: A
         text: The calm, logical problem-solver
@@ -18,7 +18,7 @@ questions:
         text: The powerhouse athlete
         tags: [dramatic, shock_value]
   - id: q2
-    text: At a wholesome family dinner, whose side do you sit on?
+    text: "At a wholesome family dinner, whose side do you sit on?"
     options:
       - id: A
         text: The golden child
@@ -33,7 +33,7 @@ questions:
         text: The family dog
         tags: [comfort, low_stakes_joy]
   - id: q3
-    text: Two free tickets—whose concert do you pick?
+    text: "Two free tickets—whose concert do you pick?"
     options:
       - id: A
         text: Power ballad icon

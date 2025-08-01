@@ -5,6 +5,10 @@ import uuid
 from pathlib import Path
 
 import typer
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 from ..adapters.anthropic_adapter import AnthropicAdapter
 from ..adapters.mock_adapter import MockAdapter
