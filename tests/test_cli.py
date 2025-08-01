@@ -34,9 +34,9 @@ def test_cli_mock_results_dir(tmp_path, monkeypatch):
     quiz_run(quiz_path)
 
     raw_dir = tmp_path / "results" / "mock" / "raw"
-    # Check for per-run subfolders containing jsonl files
+    # Check for per-run subfolders containing result files
     run_dirs = [d for d in raw_dir.iterdir() if d.is_dir()]
     assert len(run_dirs) >= 1, "Expected at least one run directory"
-    # Check that the run directory contains jsonl files
+    # Check that the run directory contains json files
     run_dir = run_dirs[0]
-    assert any(run_dir.glob("*.jsonl")), f"Expected jsonl files in {run_dir}"
+    assert any(run_dir.glob("*.json")), f"Expected json files in {run_dir}"
