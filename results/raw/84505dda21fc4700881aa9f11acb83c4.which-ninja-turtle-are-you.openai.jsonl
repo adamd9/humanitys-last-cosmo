@@ -1,0 +1,2 @@
+{"question_id": "Q1", "choice": "C", "reason": "I love the gooey, melty goodness of extra cheese.", "refused": false, "latency_ms": 1083, "tokens_in": 115, "tokens_out": 25}
+{"question_id": "Q2", "choice": "B", "reason": "I prefer to plan first to ensure everything goes smoothly.", "refused": false, "latency_ms": 1045, "tokens_in": 116, "tokens_out": 19}

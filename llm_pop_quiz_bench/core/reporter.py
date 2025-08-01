@@ -25,15 +25,29 @@ def write_summary_csv(path: Path, rows: Iterable[dict]) -> None:
 
 def load_results(run_id: str, results_dir: Path) -> pd.DataFrame:
     rows: list[dict] = []
-    for path in (results_dir / "raw").glob(f"{run_id}.*.jsonl"):
-        parts = path.stem.split(".")
-        if len(parts) < 3:
-            continue
-        _, quiz_id, model_id = parts
-        recs = read_jsonl(path)
-        for rec in recs:
-            rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
-            rows.append(rec)
+    # Look for results in the new per-run subfolder structure
+    run_results_dir = results_dir / "raw" / run_id
+    if run_results_dir.exists():
+        for path in run_results_dir.glob("*.jsonl"):
+            parts = path.stem.split(".")
+            if len(parts) < 2:
+                continue
+            quiz_id, model_id = parts
+            recs = read_jsonl(path)
+            for rec in recs:
+                rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
+                rows.append(rec)
+    else:
+        # Fallback to old structure for backward compatibility
+        for path in (results_dir / "raw").glob(f"{run_id}.*.jsonl"):
+            parts = path.stem.split(".")
+            if len(parts) < 3:
+                continue
+            _, quiz_id, model_id = parts
+            recs = read_jsonl(path)
+            for rec in recs:
+                rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
+                rows.append(rec)
     return pd.DataFrame(rows)
 
 
@@ -114,7 +128,21 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
     write_summary_csv(summary_dir / f"{run_id}.csv", df.to_dict(orient="records"))
 
     for quiz_id, qdf in df.groupby("quiz_id"):
-        quiz_path = Path("quizzes") / f"{quiz_id}.yaml"
+        # Find the quiz file by searching for the quiz ID within files
+        quiz_path = None
+        quizzes_dir = Path("quizzes")
+        for yaml_file in quizzes_dir.glob("*.yaml"):
+            try:
+                quiz_content = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+                if quiz_content.get("id") == quiz_id:
+                    quiz_path = yaml_file
+                    break
+            except (yaml.YAMLError, FileNotFoundError):
+                continue
+        
+        if not quiz_path:
+            raise ValueError(f"Quiz file not found for quiz ID: {quiz_id}")
+        
         quiz_def = yaml.safe_load(quiz_path.read_text(encoding="utf-8"))
         outcomes = compute_model_outcomes(qdf, quiz_def)
         md_lines = [f"# {quiz_def['title']}", f"Source: {quiz_def['source']['url']}"]

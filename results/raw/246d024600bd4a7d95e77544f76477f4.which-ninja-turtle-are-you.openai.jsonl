@@ -1,0 +1,2 @@
+{"question_id": "Q1", "choice": "C", "reason": "I can never have too much cheese on my pizza.", "refused": false, "latency_ms": 1545, "tokens_in": 115, "tokens_out": 23}
+{"question_id": "Q2", "choice": "C", "reason": "I like to keep things fun and positive.", "refused": false, "latency_ms": 917, "tokens_in": 116, "tokens_out": 21}

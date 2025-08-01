@@ -46,7 +46,10 @@ async def run_quiz(
                 tokens_in=resp.get("tokens_in"),
                 tokens_out=resp.get("tokens_out"),
             )
-            out_path = results_dir / "raw" / f"{run_id}.{quiz['id']}.{adapter.id}.jsonl"
+            # Create per-run subfolder for better organization
+            run_results_dir = results_dir / "raw" / run_id
+            run_results_dir.mkdir(parents=True, exist_ok=True)
+            out_path = run_results_dir / f"{quiz['id']}.{adapter.id}.jsonl"
             append_jsonl(out_path, rec.__dict__)
 
 

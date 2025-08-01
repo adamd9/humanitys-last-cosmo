@@ -28,15 +28,31 @@ def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonne
     adapters = []
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
     results_dir = Path("results/mock" if use_mocks else "results")
+    
     for m in models.split(","):
         provider, model = m.split(":", 1)
         if use_mocks:
             adapters.append(MockAdapter(model=f"{provider}:{model}"))
         elif provider == "openai":
-            adapters.append(OpenAIAdapter(model=model, api_key_env="OPENAI_API_KEY"))
+            api_key = os.environ.get("OPENAI_API_KEY")
+            if api_key:
+                adapters.append(OpenAIAdapter(model=model, api_key_env="OPENAI_API_KEY"))
+            else:
+                typer.echo(f"⚠️  Skipping {provider}:{model} - OPENAI_API_KEY not found in environment", err=True)
         elif provider == "anthropic":
-            adapters.append(AnthropicAdapter(model=model, api_key_env="ANTHROPIC_API_KEY"))
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+            if api_key:
+                adapters.append(AnthropicAdapter(model=model, api_key_env="ANTHROPIC_API_KEY"))
+            else:
+                typer.echo(f"⚠️  Skipping {provider}:{model} - ANTHROPIC_API_KEY not found in environment", err=True)
+        else:
+            typer.echo(f"⚠️  Skipping {provider}:{model} - Unknown provider '{provider}'", err=True)
 
+    if not adapters:
+        typer.echo("❌ No valid adapters available. Please check your API keys or use mock mode with LLM_POP_QUIZ_ENV=mock", err=True)
+        raise typer.Exit(1)
+
+    typer.echo(f"✅ Running quiz with {len(adapters)} adapter(s)")
     run_sync(
         quiz_path=quiz,
         adapters=adapters,

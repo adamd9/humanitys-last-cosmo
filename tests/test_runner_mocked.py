@@ -33,8 +33,11 @@ async def _run(tmp_path: Path):
     out_dir = tmp_path / "results"
     out_dir.mkdir()
     await run_quiz(quiz_path, [MockAdapter()], "test-run", out_dir)
-    raw_files = list((out_dir / "raw").glob("*.jsonl"))
-    assert raw_files
+    # Check for per-run subfolder structure
+    run_dir = out_dir / "raw" / "test-run"
+    assert run_dir.exists(), "Expected per-run subfolder to exist"
+    raw_files = list(run_dir.glob("*.jsonl"))
+    assert raw_files, "Expected jsonl files in per-run subfolder"
 
 
 def test_runner_mocked(tmp_path):
