@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from pathlib import Path
 
+import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
@@ -28,15 +29,29 @@ def load_results(run_id: str, results_dir: Path) -> pd.DataFrame:
     # Look for results in the new per-run subfolder structure
     run_results_dir = results_dir / "raw" / run_id
     if run_results_dir.exists():
-        for path in run_results_dir.glob("*.jsonl"):
-            parts = path.stem.split(".")
-            if len(parts) < 2:
-                continue
-            quiz_id, model_id = parts
-            recs = read_jsonl(path)
-            for rec in recs:
-                rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
-                rows.append(rec)
+        for path in run_results_dir.iterdir():
+            if path.suffix == ".json":
+                data = json.loads(path.read_text(encoding="utf-8"))
+                quiz_id = data.get("quiz_id", path.stem)
+                for model_id, recs in data.get("results", {}).items():
+                    for rec in recs:
+                        rec.update(
+                            {
+                                "run_id": run_id,
+                                "quiz_id": quiz_id,
+                                "model_id": model_id,
+                            }
+                        )
+                        rows.append(rec)
+            elif path.suffix == ".jsonl":
+                parts = path.stem.split(".")
+                if len(parts) < 2:
+                    continue
+                quiz_id, model_id = parts
+                recs = read_jsonl(path)
+                for rec in recs:
+                    rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
+                    rows.append(rec)
     else:
         # Fallback to old structure for backward compatibility
         for path in (results_dir / "raw").glob(f"{run_id}.*.jsonl"):

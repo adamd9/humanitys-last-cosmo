@@ -4,11 +4,11 @@ import asyncio
 import time
 from pathlib import Path
 
+import json
 import yaml
 
 from ..adapters.base import ChatAdapter
 from .prompt import PromptContext, render_prompt
-from .store import append_jsonl
 from .types import QAResult
 from .utils import parse_choice_json
 
@@ -20,7 +20,10 @@ async def run_quiz(
         quiz = yaml.safe_load(f)
 
     questions = quiz["questions"]
+    all_results: dict[str, list[dict]] = {}
+
     for adapter in adapters:
+        model_records: list[dict] = []
         for idx, q in enumerate(questions, start=1):
             ctx = PromptContext(
                 quiz_title=quiz["title"],
@@ -46,11 +49,14 @@ async def run_quiz(
                 tokens_in=resp.get("tokens_in"),
                 tokens_out=resp.get("tokens_out"),
             )
-            # Create per-run subfolder for better organization
-            run_results_dir = results_dir / "raw" / run_id
-            run_results_dir.mkdir(parents=True, exist_ok=True)
-            out_path = run_results_dir / f"{quiz['id']}.{adapter.id}.jsonl"
-            append_jsonl(out_path, rec.__dict__)
+            model_records.append(rec.__dict__)
+        all_results[adapter.id] = model_records
+
+    run_results_dir = results_dir / "raw" / run_id
+    run_results_dir.mkdir(parents=True, exist_ok=True)
+    out_path = run_results_dir / f"{quiz['id']}.json"
+    payload = {"run_id": run_id, "quiz_id": quiz["id"], "results": all_results}
+    out_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
 def run_sync(*args, **kwargs) -> None:

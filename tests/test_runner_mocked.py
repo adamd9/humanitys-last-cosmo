@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -36,8 +37,10 @@ async def _run(tmp_path: Path):
     # Check for per-run subfolder structure
     run_dir = out_dir / "raw" / "test-run"
     assert run_dir.exists(), "Expected per-run subfolder to exist"
-    raw_files = list(run_dir.glob("*.jsonl"))
-    assert raw_files, "Expected jsonl files in per-run subfolder"
+    raw_files = list(run_dir.glob("*.json"))
+    assert raw_files, "Expected json files in per-run subfolder"
+    data = json.loads(raw_files[0].read_text(encoding="utf-8"))
+    assert "results" in data and data["results"], "Results should contain model entries"
 
 
 def test_runner_mocked(tmp_path):
