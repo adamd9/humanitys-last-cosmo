@@ -1,0 +1,80 @@
+{
+    "schema_version": "1.0",
+    "metadata": {
+      "id": "marie_claire_hostess_type_2009_10_16",
+      "title": "What Kind of Hostess Are You?",
+      "source": "Marie Claire",
+      "publication_date": "2009-10-16",
+      "provenance_note": "Paraphrased four-question holiday-hosting quiz with A/B/C outcomes."
+    },
+    "preface": "Holiday entertaining reveals your inner host energy. Answer four and meet your alter ego.",
+    "format": {
+      "question_count": 4,
+      "choice_labels": ["A", "B", "C"],
+      "scoring_type": "mostly_choice",
+      "display_instructions": "Pick one per question; mostly A/B/C maps to your result."
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Partner forgets dessert—what now?",
+        "options": [
+          {"label": "A", "text": "No stress—ask a friend to grab something."},
+          {"label": "B", "text": "Freezer dive for a passable save."},
+          {"label": "C", "text": "Whip up a from-scratch masterpiece, somehow."}
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "Your cooking outfit:",
+        "options": [
+          {"label": "A", "text": "Jeans and a sweater—practical."},
+          {"label": "B", "text": "Cute retro apron with a twist."},
+          {"label": "C", "text": "Chef-core—crisp whites, maybe monogrammed."}
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "Stuffing strategy:",
+        "options": [
+          {"label": "A", "text": "Let the group decide."},
+          {"label": "B", "text": "Follow the box instructions."},
+          {"label": "C", "text": "Depends on today’s elaborate recipe."}
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "Most important part of the holiday:",
+        "options": [
+          {"label": "A", "text": "Shared effort and good conversation."},
+          {"label": "B", "text": "Days off!"},
+          {"label": "C", "text": "Appreciation for your heroic hosting."}
+        ]
+      }
+    ],
+    "scoring": {
+      "rules": "Tally your letters and choose the majority.",
+      "outcomes": [
+        {
+          "id": "the_communist",
+          "label": "The Communist",
+          "when": "mostly A",
+          "description": "Collaborative, delegation-friendly, and good at keeping the vibe inclusive."
+        },
+        {
+          "id": "the_anarchist",
+          "label": "The Anarchist",
+          "when": "mostly B",
+          "description": "Rules are suggestions. Casual, fun, friends-welcome energy."
+        },
+        {
+          "id": "the_dictator",
+          "label": "The Dictator",
+          "when": "mostly C",
+          "description": "Perfectionist tableau, breathtaking results—just pace yourself."
+        }
+      ],
+      "ties": "If tied, read both personas; you flex per occasion."
+    }
+  }
+  

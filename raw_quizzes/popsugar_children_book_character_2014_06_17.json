@@ -1,0 +1,104 @@
+{
+    "schema_version": "1.0",
+    "metadata": {
+      "id": "popsugar_children_book_character_2014_06_17",
+      "title": "Which Beloved Children’s Book Character Are You?",
+      "source": "POPSUGAR Family",
+      "publication_date": "2014-06-17",
+      "provenance_note": "Paraphrased personality quiz with nostalgia-flavored prompts."
+    },
+    "preface": "From brunch lover to backyard adventurer, find your kid-lit alter ego.",
+    "format": {
+      "question_count": 6,
+      "choice_labels": ["A", "B", "C", "D", "E", "F"],
+      "scoring_type": "mostly_choice",
+      "display_instructions": "Pick one per question. Your dominant letter reveals your character."
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Pick a piece of art that calls to you:",
+        "options": [
+          {"label": "A", "text": "Minimal leaves and woodgrain"},
+          {"label": "B", "text": "Wild swirls and crowns"},
+          {"label": "C", "text": "Bright stripes and a tall hat"},
+          {"label": "D", "text": "Delicate webs and soft lines"},
+          {"label": "E", "text": "Storm clouds and crumpled paper"},
+          {"label": "F", "text": "Warm, cozy cityscape with raincoats"}
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "The key to a great relationship is…",
+        "options": [
+          {"label": "A", "text": "Selfless giving"},
+          {"label": "B", "text": "Adventure together"},
+          {"label": "C", "text": "Playful chaos"},
+          {"label": "D", "text": "Gentle care"},
+          {"label": "E", "text": "Honesty about off days"},
+          {"label": "F", "text": "Hospitality and snacks"}
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "Your ideal Sunday:",
+        "options": [
+          {"label": "A", "text": "Go with the flow"},
+          {"label": "B", "text": "Mud run or mini-expedition"},
+          {"label": "C", "text": "BBQ and games"},
+          {"label": "D", "text": "Volunteer and connect"},
+          {"label": "E", "text": "Brunch then decompress"},
+          {"label": "F", "text": "Family lounge day"}
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "Role in your friend group:",
+        "options": [
+          {"label": "A", "text": "Giver / helper"},
+          {"label": "B", "text": "Ringleader of fun"},
+          {"label": "C", "text": "Agent of mischief"},
+          {"label": "D", "text": "The caretaker"},
+          {"label": "E", "text": "The realist"},
+          {"label": "F", "text": "The individualist"}
+        ]
+      },
+      {
+        "id": "q5",
+        "text": "Pick a magazine:",
+        "options": [
+          {"label": "A", "text": "Nature & simplicity"},
+          {"label": "B", "text": "Explorers & maps"},
+          {"label": "C", "text": "Whimsy & rhymes"},
+          {"label": "D", "text": "Science & threads"},
+          {"label": "E", "text": "Feelings & honesty"},
+          {"label": "F", "text": "Travel & marmalade"}
+        ]
+      },
+      {
+        "id": "q6",
+        "text": "Favorite color mood:",
+        "options": [
+          {"label": "A", "text": "Leafy green"},
+          {"label": "B", "text": "Crown gold"},
+          {"label": "C", "text": "Candy red"},
+          {"label": "D", "text": "Silvery grey"},
+          {"label": "E", "text": "Stormy blue"},
+          {"label": "F", "text": "Raincoat yellow"}
+        ]
+      }
+    ],
+    "scoring": {
+      "rules": "Find your most-frequent letter.",
+      "outcomes": [
+        {"id": "the_giving_tree", "label": "The Giving Tree", "when": "mostly A", "description": "Selfless, nurturing, quietly steadfast."},
+        {"id": "max", "label": "Max (Where the Wild Things Are)", "when": "mostly B", "description": "Adventurous spirit with a soft landing."},
+        {"id": "cat_in_the_hat", "label": "The Cat in the Hat", "when": "mostly C", "description": "Playful chaos with a wink."},
+        {"id": "charlotte", "label": "Charlotte (Charlotte’s Web)", "when": "mostly D", "description": "Gentle strategist and faithful friend."},
+        {"id": "alexander", "label": "Alexander (Very Bad Day)", "when": "mostly E", "description": "Honest about moods; resilient anyway."},
+        {"id": "paddington", "label": "Paddington", "when": "mostly F", "description": "Kind, curious, and snack-positive."}
+      ],
+      "ties": "If tied, you contain multitudes—read both."
+    }
+  }
+  

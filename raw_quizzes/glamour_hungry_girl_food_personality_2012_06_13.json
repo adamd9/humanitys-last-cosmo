@@ -1,0 +1,100 @@
+{
+    "schema_version": "1.0",
+    "metadata": {
+      "id": "glamour_hungry_girl_food_personality_2012_06_13",
+      "title": "Hungry Girl’s Food Personality Quiz",
+      "source": "Glamour",
+      "publication_date": "2012-06-13",
+      "provenance_note": "Paraphrased structure based on a light, food-habits quiz format."
+    },
+    "preface": "Answer five food-and-shopping questions to reveal your snack-life persona—plus quick pantry tips.",
+    "format": {
+      "question_count": 5,
+      "choice_labels": ["A", "B", "C", "D"],
+      "scoring_type": "mostly_choice",
+      "display_instructions": "Choose one option per question; the letter you pick most determines your result."
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Open your pantry: what’s the current vibe?",
+        "options": [
+          {"label": "A", "text": "Sparse and improvised—whatever’s left."},
+          {"label": "B", "text": "Lean and green—superfoods and staples."},
+          {"label": "C", "text": "Overflowing—backups for your backups."},
+          {"label": "D", "text": "Snacks-on-snacks—chips, sweets, and nostalgia boxes."}
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "Your grocery style:",
+        "options": [
+          {"label": "A", "text": "Drive-through and convenience first."},
+          {"label": "B", "text": "Farmers’ market and produce-forward."},
+          {"label": "C", "text": "Bulk buys and frequent impulse deals."},
+          {"label": "D", "text": "Cereal aisle and treats are the destination."}
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "Pick a soundtrack for your eating habits:",
+        "options": [
+          {"label": "A", "text": "“Always on the run”—working and snacking on the fly."},
+          {"label": "B", "text": "“Clean and bright”—fresh as your crisper drawer."},
+          {"label": "C", "text": "“Too much, too soon”—abundance meets chaos."},
+          {"label": "D", "text": "“Candy shop”—sweet tooth in charge."}
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "Lifestyle energy lately?",
+        "options": [
+          {"label": "A", "text": "Booked and busy."},
+          {"label": "B", "text": "Wellness devotee."},
+          {"label": "C", "text": "Disorganized but optimistic."},
+          {"label": "D", "text": "Couch, remote, and a faithful streaming queue."}
+        ]
+      },
+      {
+        "id": "q5",
+        "text": "Philosophy on cooking:",
+        "options": [
+          {"label": "A", "text": "Minimalist—only when necessary."},
+          {"label": "B", "text": "If it’s not healthy, it’s a no."},
+          {"label": "C", "text": "Stock everything ‘just in case.’"},
+          {"label": "D", "text": "Microwave maestro; seconds to spare."}
+        ]
+      }
+    ],
+    "scoring": {
+      "rules": "Find your most-chosen letter.",
+      "outcomes": [
+        {
+          "id": "girl_on_the_go",
+          "label": "Girl on the Go",
+          "when": "mostly A",
+          "description": "You snack for speed. Stock portable protein and smart convenience options."
+        },
+        {
+          "id": "nutrition_nut",
+          "label": "Nutrition Nut",
+          "when": "mostly B",
+          "description": "You shop with purpose. Keep produce prepped and hydration handy."
+        },
+        {
+          "id": "hungry_hoarder",
+          "label": "Hungry Hoarder",
+          "when": "mostly C",
+          "description": "Overflow alert. Rotate pantry items and plan simple, balanced meals."
+        },
+        {
+          "id": "junk_food_jane",
+          "label": "Junk Food Jane",
+          "when": "mostly D",
+          "description": "Treats run the show. Add satisfying fiber/protein swaps to the lineup."
+        }
+      ],
+      "ties": "On ties, pick the description that best fits or combine tips from both."
+    }
+  }
+  

@@ -1,0 +1,100 @@
+{
+    "schema_version": "1.0",
+    "metadata": {
+      "id": "cosmo_me_wellness_aesthetic_2025_02_24",
+      "title": "Which wellness aesthetic are you?",
+      "source": "Cosmopolitan Middle East",
+      "publication_date": "2025-02-24",
+      "provenance_note": "Paraphrased structure from a Cosmo-adjacent quiz; wording adapted for benchmarking."
+    },
+    "preface": "From ice baths to reformer Pilates to matcha walks, which wellness vibe is most you? Answer these five and tally your letters.",
+    "format": {
+      "question_count": 5,
+      "choice_labels": ["A", "B", "C", "D"],
+      "scoring_type": "mostly_choice",
+      "display_instructions": "Choose one option per question. Your dominant letter determines your result."
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Your ideal morning looks like…",
+        "options": [
+          {"label": "A", "text": "7 a.m. Pilates, iced coffee/matcha, canal-side stroll."},
+          {"label": "B", "text": "DIY green juice and a quick journal session at the beach."},
+          {"label": "C", "text": "Sunrise hike with friends; giant thermos of tea."},
+          {"label": "D", "text": "Cold plunge, red-light, protein smoothie—tracked on your watch."}
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "Weekend plans?",
+        "options": [
+          {"label": "A", "text": "Pilates, beach day, then reality TV catch-up."},
+          {"label": "B", "text": "Farmers’ market haul and skincare restock."},
+          {"label": "C", "text": "Desert camping and a starry-night grill."},
+          {"label": "D", "text": "Breathwork workshop followed by deep-tissue massage."}
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "Your go-to workout:",
+        "options": [
+          {"label": "A", "text": "Reformer Pilates in a matching set."},
+          {"label": "B", "text": "Beach power-walk with a podcast."},
+          {"label": "C", "text": "Long outdoor ride/laps; main-character energy."},
+          {"label": "D", "text": "Strength training, then sauna; metrics or it didn’t happen."}
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "Next wellness splurge?",
+        "options": [
+          {"label": "A", "text": "That new activewear drop."},
+          {"label": "B", "text": "Gua sha and an ice roller."},
+          {"label": "C", "text": "Bedazzled jumbo water bottle."},
+          {"label": "D", "text": "Massage gun and collagen restock."}
+        ]
+      },
+      {
+        "id": "q5",
+        "text": "Guilty pleasure:",
+        "options": [
+          {"label": "A", "text": "An “everything” shower plus a hair-mask ritual."},
+          {"label": "B", "text": "Rating viral açai spots on IG."},
+          {"label": "C", "text": "Taking 100 sunset pics, posting one."},
+          {"label": "D", "text": "Red-light face mask while binging a show at home."}
+        ]
+      }
+    ],
+    "scoring": {
+      "rules": "Determine the letter you chose most frequently.",
+      "outcomes": [
+        {
+          "id": "pilates_princess",
+          "label": "Pilates Princess",
+          "when": "mostly A",
+          "description": "Graceful, social, and schedule-savvy. Studio classes and cute sets are your love language."
+        },
+        {
+          "id": "green_juice_goddess",
+          "label": "Green Juice Goddess",
+          "when": "mostly B",
+          "description": "Wellness is a ritual. You live for farmers’ markets, routines, and glowy skincare."
+        },
+        {
+          "id": "hot_girl_hiker",
+          "label": "Hot Girl Hiker",
+          "when": "mostly C",
+          "description": "Outdoor endorphins > everything. Spontaneous plans and golden-hour selfies abound."
+        },
+        {
+          "id": "biohacking_babe",
+          "label": "Biohacking Babe",
+          "when": "mostly D",
+          "description": "Optimization is your sport. You’re on a first-name basis with your recovery metrics."
+        }
+      ],
+      "ties": "If tied, pick the description that best matches your lifestyle or split the crown."
+    }
+  }
+  

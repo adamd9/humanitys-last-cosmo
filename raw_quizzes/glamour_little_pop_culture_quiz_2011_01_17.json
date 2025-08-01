@@ -1,0 +1,54 @@
+{
+    "schema_version": "1.0",
+    "metadata": {
+      "id": "glamour_little_pop_culture_quiz_2011_01_17",
+      "title": "Pop-Culture Picks That Reveal His Type",
+      "source": "Glamour",
+      "publication_date": "2011-01-17",
+      "provenance_note": "Paraphrased three-question quiz with per-option interpretations."
+    },
+    "preface": "His pop-culture choices say plenty. Pick options and read what each means—then synthesize the vibe.",
+    "format": {
+      "question_count": 3,
+      "choice_labels": ["A", "B", "C", "D"],
+      "scoring_type": "per_item_interpretation",
+      "display_instructions": "Each option has an interpretation. Provide per-item reads and a final synthesis."
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "text": "In a haunted house, choose a leading lady to help you escape:",
+        "options": [
+          {"label": "A", "text": "The calm, logical problem-solver", "interpretation": "Pragmatic taste; substance over spectacle."},
+          {"label": "B", "text": "The broody indie darling", "interpretation": "Attracted to intensity and complexity."},
+          {"label": "C", "text": "The powerhouse athlete", "interpretation": "Dramatic instincts; potential 🚩 if it’s all shock value."}
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "At a wholesome family dinner, whose side do you sit on?",
+        "options": [
+          {"label": "A", "text": "The golden child", "interpretation": "Likes approval and smooth sailing."},
+          {"label": "B", "text": "The rebellious sister", "interpretation": "Short-term thrills over long game."},
+          {"label": "C", "text": "The earnest one", "interpretation": "Seeks connection and steady attention."},
+          {"label": "D", "text": "The family dog", "interpretation": "Comfort-seeker; values low-stakes joy."}
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "Two free tickets—whose concert do you pick?",
+        "options": [
+          {"label": "A", "text": "Power ballad icon", "interpretation": "Thinks ahead; willing to ‘suffer’ for shared quality time."},
+          {"label": "B", "text": "Boy band A", "interpretation": "Distractible; follows hype cycles."},
+          {"label": "C", "text": "Boy band B", "interpretation": "Nostalgia-led decision making."},
+          {"label": "D", "text": "Boy band C", "interpretation": "Crowd-pleaser; consensus chaser."}
+        ]
+      }
+    ],
+    "scoring": {
+      "rules": "No tally. Provide an interpretation for each choice and a final one-sentence synthesis.",
+      "outcomes": [],
+      "ties": "N/A"
+    }
+  }
+  

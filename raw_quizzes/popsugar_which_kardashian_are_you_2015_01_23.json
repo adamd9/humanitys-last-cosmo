@@ -1,0 +1,104 @@
+{
+    "schema_version": "1.0",
+    "metadata": {
+      "id": "popsugar_which_kardashian_are_you_2015_01_23",
+      "title": "Which Kardashian Are You?",
+      "source": "POPSUGAR Celebrity",
+      "publication_date": "2015-01-23",
+      "provenance_note": "Paraphrased multi-choice personality quiz with pop-culture options."
+    },
+    "preface": "Own your guilty pleasure: answer these lifestyle-and-pop questions to see which Kardashian/Jenner you align with.",
+    "format": {
+      "question_count": 6,
+      "choice_labels": ["A", "B", "C", "D", "E", "F"],
+      "scoring_type": "mostly_choice",
+      "display_instructions": "Choose one option per question. The letter you pick most maps to a family member."
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Your drink of choice:",
+        "options": [
+          {"label": "A", "text": "Cosmopolitan"},
+          {"label": "B", "text": "Water with lemon"},
+          {"label": "C", "text": "Jello shots"},
+          {"label": "D", "text": "Beer"},
+          {"label": "E", "text": "Something classic—wine"},
+          {"label": "F", "text": "A throwback cooler or trendy sip"}
+        ]
+      },
+      {
+        "id": "q2",
+        "text": "Friday at 8 p.m., you’re…",
+        "options": [
+          {"label": "A", "text": "Getting ready with the girls."},
+          {"label": "B", "text": "At the mall or running errands."},
+          {"label": "C", "text": "On a date."},
+          {"label": "D", "text": "Still at work, grinding."},
+          {"label": "E", "text": "Subtweeting and scrolling."},
+          {"label": "F", "text": "Asleep with kids tucked in."}
+        ]
+      },
+      {
+        "id": "q3",
+        "text": "You’re handed $5,000. First move?",
+        "options": [
+          {"label": "A", "text": "Designer dress or glam."},
+          {"label": "B", "text": "Buy a round for friends."},
+          {"label": "C", "text": "Fast-fashion spree."},
+          {"label": "D", "text": "Food and practicalities."},
+          {"label": "E", "text": "Savings/IRA like a grown-up."},
+          {"label": "F", "text": "Seed a passion project."}
+        ]
+      },
+      {
+        "id": "q4",
+        "text": "Favorite app:",
+        "options": [
+          {"label": "A", "text": "Instagram"},
+          {"label": "B", "text": "Facebook"},
+          {"label": "C", "text": "Tinder"},
+          {"label": "D", "text": "Snapchat"},
+          {"label": "E", "text": "A retro network / forum classic"},
+          {"label": "F", "text": "Short-video craze (RIP Vine energy)"}
+        ]
+      },
+      {
+        "id": "q5",
+        "text": "Your personal brand in one word:",
+        "options": [
+          {"label": "A", "text": "Polished"},
+          {"label": "B", "text": "Practical"},
+          {"label": "C", "text": "Life-of-the-party"},
+          {"label": "D", "text": "Driven"},
+          {"label": "E", "text": "Unfiltered"},
+          {"label": "F", "text": "Family-first"}
+        ]
+      },
+      {
+        "id": "q6",
+        "text": "Pick a weekend plot twist:",
+        "options": [
+          {"label": "A", "text": "Surprise glam shoot."},
+          {"label": "B", "text": "Errand marathon and meal prep."},
+          {"label": "C", "text": "Spontaneous night out."},
+          {"label": "D", "text": "New side hustle idea."},
+          {"label": "E", "text": "Going private after some drama."},
+          {"label": "F", "text": "Cozy family BBQ."}
+        ]
+      }
+    ],
+    "scoring": {
+      "rules": "Find your most-selected letter.",
+      "outcomes": [
+        {"id": "kim", "label": "Kim", "when": "mostly A", "description": "Polished, brand-forward, and glam with a plan."},
+        {"id": "kourtney", "label": "Kourtney", "when": "mostly B", "description": "Low-key, practical, wellness-leaning."},
+        {"id": "khloe", "label": "Khloé", "when": "mostly C", "description": "Outgoing, witty, the friend-group cheer captain."},
+        {"id": "kris", "label": "Kris", "when": "mostly D", "description": "Executive energy—organized and ambitious."},
+        {"id": "rob", "label": "Rob", "when": "mostly E", "description": "Private, blunt, and loyal."},
+        {"id": "kendall", "label": "Kendall", "when": "mostly F", "description": "Chill, family-oriented, keeps it classic."}
+      ],
+      "ties": "On ties, read both blurbs; you may be a blend."
+    }
+  }
+  
