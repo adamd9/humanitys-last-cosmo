@@ -5,6 +5,7 @@ import time
 
 import httpx
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
+from typing import Union
 
 from .base import ChatResponse
 
@@ -21,7 +22,7 @@ class OpenAIAdapter:
         )
 
     async def send(
-        self, messages: list[dict[str, str]], params: dict | None = None
+        self, messages: list[dict[str, str]], params: Union[dict, None] = None
     ) -> ChatResponse:
         headers = {"Authorization": f"Bearer {self.api_key}"}
         payload = {

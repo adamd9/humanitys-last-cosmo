@@ -1,0 +1,75 @@
+id: glamour_hungry_girl_food_personality_2012_06_13
+title: Hungry Girl’s Food Personality Quiz
+source:
+  publication: Glamour
+  url: null
+notes: Answer five food-and-shopping questions to reveal your snack-life persona—plus quick pantry tips.
+questions:
+  - id: q1
+    text: Open your pantry: what’s the current vibe?
+    options:
+      - id: A
+        text: Sparse and improvised—whatever’s left.
+      - id: B
+        text: Lean and green—superfoods and staples.
+      - id: C
+        text: Overflowing—backups for your backups.
+      - id: D
+        text: Snacks-on-snacks—chips, sweets, and nostalgia boxes.
+  - id: q2
+    text: Your grocery style:
+    options:
+      - id: A
+        text: Drive-through and convenience first.
+      - id: B
+        text: Farmers’ market and produce-forward.
+      - id: C
+        text: Bulk buys and frequent impulse deals.
+      - id: D
+        text: Cereal aisle and treats are the destination.
+  - id: q3
+    text: Pick a soundtrack for your eating habits:
+    options:
+      - id: A
+        text: “Always on the run”—working and snacking on the fly.
+      - id: B
+        text: “Clean and bright”—fresh as your crisper drawer.
+      - id: C
+        text: “Too much, too soon”—abundance meets chaos.
+      - id: D
+        text: “Candy shop”—sweet tooth in charge.
+  - id: q4
+    text: Lifestyle energy lately?
+    options:
+      - id: A
+        text: Booked and busy.
+      - id: B
+        text: Wellness devotee.
+      - id: C
+        text: Disorganized but optimistic.
+      - id: D
+        text: Couch, remote, and a faithful streaming queue.
+  - id: q5
+    text: Philosophy on cooking:
+    options:
+      - id: A
+        text: Minimalist—only when necessary.
+      - id: B
+        text: If it’s not healthy, it’s a no.
+      - id: C
+        text: Stock everything ‘just in case.’
+      - id: D
+        text: Microwave maestro; seconds to spare.
+outcomes:
+  - id: girl_on_the_go
+    mostly: A
+    text: You snack for speed. Stock portable protein and smart convenience options.
+  - id: nutrition_nut
+    mostly: B
+    text: You shop with purpose. Keep produce prepped and hydration handy.
+  - id: hungry_hoarder
+    mostly: C
+    text: Overflow alert. Rotate pantry items and plan simple, balanced meals.
+  - id: junk_food_jane
+    mostly: D
+    text: Treats run the show. Add satisfying fiber/protein swaps to the lineup.

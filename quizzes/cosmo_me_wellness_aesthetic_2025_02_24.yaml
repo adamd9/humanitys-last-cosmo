@@ -1,0 +1,79 @@
+id: cosmo_me_wellness_aesthetic_2025_02_24
+title: Which wellness aesthetic are you?
+source:
+  publication: Cosmopolitan Middle East
+  url: null
+notes: Paraphrased structure from a Cosmo-adjacent quiz; wording adapted for benchmarking.
+questions:
+  - id: q1
+    text: Your ideal morning looks like…
+    options:
+      - id: A
+        text: 7 a.m. Pilates, iced coffee/matcha, canal-side stroll.
+      - id: B
+        text: DIY green juice and a quick journal session at the beach.
+      - id: C
+        text: Sunrise hike with friends; giant thermos of tea.
+      - id: D
+        text: Cold plunge, red-light, protein smoothie—tracked on your watch.
+  - id: q2
+    text: Weekend plans?
+    options:
+      - id: A
+        text: Pilates, beach day, then reality TV catch-up.
+      - id: B
+        text: Farmers’ market haul and skincare restock.
+      - id: C
+        text: Desert camping and a starry-night grill.
+      - id: D
+        text: Breathwork workshop followed by deep-tissue massage.
+  - id: q3
+    text: Your go-to workout:
+    options:
+      - id: A
+        text: Reformer Pilates in a matching set.
+      - id: B
+        text: Beach power-walk with a podcast.
+      - id: C
+        text: Long outdoor ride/laps; main-character energy.
+      - id: D
+        text: Strength training, then sauna; metrics or it didn’t happen.
+  - id: q4
+    text: Next wellness splurge?
+    options:
+      - id: A
+        text: That new activewear drop.
+      - id: B
+        text: Gua sha and an ice roller.
+      - id: C
+        text: Bedazzled jumbo water bottle.
+      - id: D
+        text: Massage gun and collagen restock.
+  - id: q5
+    text: Guilty pleasure:
+    options:
+      - id: A
+        text: An “everything” shower plus a hair-mask ritual.
+      - id: B
+        text: Rating viral açai spots on IG.
+      - id: C
+        text: Taking 100 sunset pics, posting one.
+      - id: D
+        text: Red-light face mask while binging a show at home.
+outcomes:
+  - id: pilates_princess
+    title: Pilates Princess
+    mostly: A
+    description: Graceful, social, and schedule-savvy. Studio classes and cute sets are your love language.
+  - id: green_juice_goddess
+    title: Green Juice Goddess
+    mostly: B
+    description: Wellness is a ritual. You live for farmers’ markets, routines, and glowy skincare.
+  - id: hot_girl_hiker
+    title: Hot Girl Hiker
+    mostly: C
+    description: Outdoor endorphins > everything. Spontaneous plans and golden-hour selfies abound.
+  - id: biohacking_babe
+    title: Biohacking Babe
+    mostly: D
+    description: Optimization is your sport. You're on a first-name basis with your recovery metrics.

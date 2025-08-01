@@ -1,8 +1,8 @@
 import json
-from typing import Any
+from typing import Any, Union
 
 
-def parse_choice_json(text: str) -> dict[str, Any] | None:
+def parse_choice_json(text: str) -> Union[dict[str, Any], None]:
     """Parse the model response for choice JSON."""
     try:
         return json.loads(text.strip())

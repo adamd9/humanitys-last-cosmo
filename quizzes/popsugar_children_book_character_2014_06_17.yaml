@@ -1,0 +1,122 @@
+id: popsugar_children_book_character_2014_06_17
+title: Which Beloved Children’s Book Character Are You?
+source:
+  publication: POPSUGAR Family
+  url: null
+notes: Paraphrased personality quiz with nostalgia-flavored prompts.
+questions:
+  - id: q1
+    text: Pick a piece of art that calls to you:
+    options:
+      - id: A
+        text: Minimal leaves and woodgrain
+      - id: B
+        text: Wild swirls and crowns
+      - id: C
+        text: Bright stripes and a tall hat
+      - id: D
+        text: Delicate webs and soft lines
+      - id: E
+        text: Storm clouds and crumpled paper
+      - id: F
+        text: Warm, cozy cityscape with raincoats
+  - id: q2
+    text: The key to a great relationship is…
+    options:
+      - id: A
+        text: Selfless giving
+      - id: B
+        text: Adventure together
+      - id: C
+        text: Playful chaos
+      - id: D
+        text: Gentle care
+      - id: E
+        text: Honesty about off days
+      - id: F
+        text: Hospitality and snacks
+  - id: q3
+    text: Your ideal Sunday:
+    options:
+      - id: A
+        text: Go with the flow
+      - id: B
+        text: Mud run or mini-expedition
+      - id: C
+        text: BBQ and games
+      - id: D
+        text: Volunteer and connect
+      - id: E
+        text: Brunch then decompress
+      - id: F
+        text: Family lounge day
+  - id: q4
+    text: Role in your friend group:
+    options:
+      - id: A
+        text: Giver / helper
+      - id: B
+        text: Ringleader of fun
+      - id: C
+        text: Agent of mischief
+      - id: D
+        text: The caretaker
+      - id: E
+        text: The realist
+      - id: F
+        text: The individualist
+  - id: q5
+    text: Pick a magazine:
+    options:
+      - id: A
+        text: Nature & simplicity
+      - id: B
+        text: Explorers & maps
+      - id: C
+        text: Whimsy & rhymes
+      - id: D
+        text: Science & threads
+      - id: E
+        text: Feelings & honesty
+      - id: F
+        text: Travel & marmalade
+  - id: q6
+    text: Favorite color mood:
+    options:
+      - id: A
+        text: Leafy green
+      - id: B
+        text: Crown gold
+      - id: C
+        text: Candy red
+      - id: D
+        text: Silvery grey
+      - id: E
+        text: Stormy blue
+      - id: F
+        text: Raincoat yellow
+outcomes:
+  - id: the_giving_tree
+    text: The Giving Tree
+    mostly: A
+    description: Selfless, nurturing, quietly steadfast.
+  - id: max
+    text: Max (Where the Wild Things Are)
+    mostly: B
+    description: Adventurous spirit with a soft landing.
+  - id: cat_in_the_hat
+    text: The Cat in the Hat
+    mostly: C
+    description: Playful chaos with a wink.
+  - id: charlotte
+    text: Charlotte (Charlotte’s Web)
+    mostly: D
+    description: Gentle strategist and faithful friend.
+  - id: alexander
+    text: Alexander (Very Bad Day)
+    mostly: E
+    description: Honest about moods; resilient anyway.
+  - id: paddington
+    text: Paddington
+    mostly: F
+    description: Kind, curious, and snack-positive.

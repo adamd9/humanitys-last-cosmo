@@ -1,0 +1,56 @@
+id: marie_claire_hostess_type_2009_10_16
+title: What Kind of Hostess Are You?
+source:
+  publication: Marie Claire
+  url: null
+notes: Paraphrased four-question holiday-hosting quiz with A/B/C outcomes.
+questions:
+  - id: q1
+    text: Partner forgets dessert—what now?
+    options:
+      - id: A
+        text: No stress—ask a friend to grab something.
+      - id: B
+        text: Freezer dive for a passable save.
+      - id: C
+        text: Whip up a from-scratch masterpiece, somehow.
+  - id: q2
+    text: Your cooking outfit:
+    options:
+      - id: A
+        text: Jeans and a sweater—practical.
+      - id: B
+        text: Cute retro apron with a twist.
+      - id: C
+        text: Chef-core—crisp whites, maybe monogrammed.
+  - id: q3
+    text: Stuffing strategy:
+    options:
+      - id: A
+        text: Let the group decide.
+      - id: B
+        text: Follow the box instructions.
+      - id: C
+        text: Depends on today’s elaborate recipe.
+  - id: q4
+    text: Most important part of the holiday:
+    options:
+      - id: A
+        text: Shared effort and good conversation.
+      - id: B
+        text: Days off!
+      - id: C
+        text: Appreciation for your heroic hosting.
+outcomes:
+  - id: the_communist
+    title: The Communist
+    mostly: A
+    description: Collaborative, delegation-friendly, and good at keeping the vibe inclusive.
+  - id: the_anarchist
+    title: The Anarchist
+    mostly: B
+    description: Rules are suggestions. Casual, fun, friends-welcome energy.
+  - id: the_dictator
+    title: The Dictator
+    mostly: C
+    description: Perfectionist tableau, breathtaking results—just pace yourself.

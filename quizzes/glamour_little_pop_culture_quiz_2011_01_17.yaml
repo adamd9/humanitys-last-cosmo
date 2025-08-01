@@ -1,0 +1,50 @@
+id: glamour_little_pop_culture_quiz_2011_01_17
+title: Pop-Culture Picks That Reveal His Type
+source:
+  publication: Glamour
+  url: null
+notes: Paraphrased three-question quiz with per-option interpretations.
+questions:
+  - id: q1
+    text: In a haunted house, choose a leading lady to help you escape:
+    options:
+      - id: A
+        text: The calm, logical problem-solver
+        tags: [pragmatic, substance]
+      - id: B
+        text: The broody indie darling
+        tags: [intensity, complexity]
+      - id: C
+        text: The powerhouse athlete
+        tags: [dramatic, shock_value]
+  - id: q2
+    text: At a wholesome family dinner, whose side do you sit on?
+    options:
+      - id: A
+        text: The golden child
+        tags: [approval, smooth_sailing]
+      - id: B
+        text: The rebellious sister
+        tags: [thrills, short_term]
+      - id: C
+        text: The earnest one
+        tags: [connection, steady_attention]
+      - id: D
+        text: The family dog
+        tags: [comfort, low_stakes_joy]
+  - id: q3
+    text: Two free tickets—whose concert do you pick?
+    options:
+      - id: A
+        text: Power ballad icon
+        tags: [forward_thinking, quality_time]
+      - id: B
+        text: Boy band A
+        tags: [distractible, hype]
+      - id: C
+        text: Boy band B
+        tags: [nostalgia]
+      - id: D
+        text: Boy band C
+        tags: [crowd_pleaser, consensus]
+outcomes: []

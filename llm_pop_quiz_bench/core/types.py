@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Union
 
 
 @dataclass
@@ -16,7 +17,7 @@ class QuizOption:
     id: str
     text: str
     tags: list[str] = field(default_factory=list)
-    score: int | None = None
+    score: Union[int, None] = None
 
 
 @dataclass
@@ -49,9 +50,9 @@ class QAResult:
     choice: str
     reason: str
     refused: bool = False
-    latency_ms: int | None = None
-    tokens_in: int | None = None
-    tokens_out: int | None = None
+    latency_ms: Union[int, None] = None
+    tokens_in: Union[int, None] = None
+    tokens_out: Union[int, None] = None
 
 
 @dataclass

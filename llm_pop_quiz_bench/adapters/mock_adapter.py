@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Union
 
 from .base import ChatResponse
 
@@ -12,7 +13,7 @@ class MockAdapter:
         self.id = f"mock:{model}"
 
     async def send(
-        self, messages: list[dict[str, str]], params: dict | None = None
+        self, messages: list[dict[str, str]], params: Union[dict, None] = None
     ) -> ChatResponse:
         start = time.perf_counter()
         latency_ms = int((time.perf_counter() - start) * 1000)

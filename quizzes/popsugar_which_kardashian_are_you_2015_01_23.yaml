@@ -1,0 +1,122 @@
+id: popsugar_which_kardashian_are_you_2015_01_23
+title: Which Kardashian Are You?
+source:
+  publication: POPSUGAR Celebrity
+  url: null
+notes: Paraphrased multi-choice personality quiz with pop-culture options.
+questions:
+  - id: q1
+    text: Your drink of choice:
+    options:
+      - id: A
+        text: Cosmopolitan
+      - id: B
+        text: Water with lemon
+      - id: C
+        text: Jello shots
+      - id: D
+        text: Beer
+      - id: E
+        text: Something classic—wine
+      - id: F
+        text: A throwback cooler or trendy sip
+  - id: q2
+    text: Friday at 8 p.m., you’re…
+    options:
+      - id: A
+        text: Getting ready with the girls.
+      - id: B
+        text: At the mall or running errands.
+      - id: C
+        text: On a date.
+      - id: D
+        text: Still at work, grinding.
+      - id: E
+        text: Subtweeting and scrolling.
+      - id: F
+        text: Asleep with kids tucked in.
+  - id: q3
+    text: You’re handed $5,000. First move?
+    options:
+      - id: A
+        text: Designer dress or glam.
+      - id: B
+        text: Buy a round for friends.
+      - id: C
+        text: Fast-fashion spree.
+      - id: D
+        text: Food and practicalities.
+      - id: E
+        text: Savings/IRA like a grown-up.
+      - id: F
+        text: Seed a passion project.
+  - id: q4
+    text: Favorite app:
+    options:
+      - id: A
+        text: Instagram
+      - id: B
+        text: Facebook
+      - id: C
+        text: Tinder
+      - id: D
+        text: Snapchat
+      - id: E
+        text: A retro network / forum classic
+      - id: F
+        text: Short-video craze (RIP Vine energy)
+  - id: q5
+    text: Your personal brand in one word:
+    options:
+      - id: A
+        text: Polished
+      - id: B
+        text: Practical
+      - id: C
+        text: Life-of-the-party
+      - id: D
+        text: Driven
+      - id: E
+        text: Unfiltered
+      - id: F
+        text: Family-first
+  - id: q6
+    text: Pick a weekend plot twist:
+    options:
+      - id: A
+        text: Surprise glam shoot.
+      - id: B
+        text: Errand marathon and meal prep.
+      - id: C
+        text: Spontaneous night out.
+      - id: D
+        text: New side hustle idea.
+      - id: E
+        text: Going private after some drama.
+      - id: F
+        text: Cozy family BBQ.
+outcomes:
+  - id: kim
+    text: Kim
+    mostly: A
+    description: Polished, brand-forward, and glam with a plan.
+  - id: kourtney
+    text: Kourtney
+    mostly: B
+    description: Low-key, practical, wellness-leaning.
+  - id: khloe
+    text: Khloé
+    mostly: C
+    description: Outgoing, witty, the friend-group cheer captain.
+  - id: kris
+    text: Kris
+    mostly: D
+    description: Executive energy—organized and ambitious.
+  - id: rob
+    text: Rob
+    mostly: E
+    description: Private, blunt, and loyal.
+  - id: kendall
+    text: Kendall
+    mostly: F
+    description: Chill, family-oriented, keeps it classic.

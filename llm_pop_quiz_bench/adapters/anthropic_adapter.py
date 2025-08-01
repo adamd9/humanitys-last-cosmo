@@ -5,6 +5,7 @@ import time
 
 import httpx
 from tenacity import AsyncRetrying, stop_after_attempt, wait_exponential
+from typing import Union
 
 from .base import ChatResponse
 
@@ -18,7 +19,7 @@ class AnthropicAdapter:
         self.client = httpx.AsyncClient(base_url="https://api.anthropic.com/v1")
 
     async def send(
-        self, messages: list[dict[str, str]], params: dict | None = None
+        self, messages: list[dict[str, str]], params: Union[dict, None] = None
     ) -> ChatResponse:
         headers = {
             "x-api-key": self.api_key,
