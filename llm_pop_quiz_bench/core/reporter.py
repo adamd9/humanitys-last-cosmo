@@ -166,119 +166,43 @@ def render_ai_reasoning_section(df: pd.DataFrame, quiz_def: dict) -> str:
 
 
 def render_results_interpretation(df: pd.DataFrame, outcomes: list, quiz_def: dict, affinity_scores: dict = None) -> str:
-    """Generate a fun, engaging interpretation of the quiz results with interesting observations."""
+    """Generate an engaging interpretation of the quiz results using LLM-powered analysis."""
     if not outcomes:
         return "No results to interpret."
     
-    lines = []
+    # Import the LLM summary generator
+    from .llm_scorer import generate_summary_with_llm
     
-    # Get model outcomes
+    # Prepare model results dictionary
     model_outcomes = {o["model_id"]: o["outcome"] for o in outcomes}
-    models = list(model_outcomes.keys())
     
-    # Fun opening
-    lines.append("🎭 **The AI Personality Showdown: What We Learned**")
+    # Generate LLM-powered summary
+    try:
+        summary = generate_summary_with_llm(
+            quiz_def=quiz_def,
+            model_results=model_outcomes,
+            affinity_scores=affinity_scores
+        )
+        return summary
+    except Exception as e:
+        # Fallback to basic summary if LLM generation fails
+        print(f"Warning: LLM summary generation failed, using fallback: {e}")
+        return _render_fallback_summary(model_outcomes)
+
+
+def _render_fallback_summary(model_outcomes: dict) -> str:
+    """Fallback summary when LLM generation is unavailable."""
+    lines = []
+    lines.append("## 🤖 Quiz Results Summary")
+    lines.append("")
+    lines.append(f"Analysis of {len(model_outcomes)} AI model{'s' if len(model_outcomes) > 1 else ''} taking a personality quiz:")
     lines.append("")
     
-    if len(models) == 2:
-        model1, model2 = models
-        outcome1, outcome2 = model_outcomes[model1], model_outcomes[model2]
-        
-        lines.append(f"In this epic battle of artificial personalities, **{model1.title()}** channeled their inner **{outcome1}** while **{model2.title()}** went full **{outcome2}** mode. Let's break down what this actually means...")
-        lines.append("")
-        
-        # Analyze choice patterns if we have affinity data
-        if affinity_scores and len(affinity_scores) >= 2:
-            lines.append("📊 **The Plot Twist: Personality Profiles**")
-            lines.append("")
-            
-            for model in models:
-                if model in affinity_scores:
-                    affinities = affinity_scores[model]
-                    # Find top 3 affinities
-                    sorted_affinities = sorted(affinities.items(), key=lambda x: x[1], reverse=True)[:3]
-                    top_personality = sorted_affinities[0][0]
-                    top_score = sorted_affinities[0][1]
-                    
-                    if top_score > 40:
-                        strength = "strongly"
-                    elif top_score > 25:
-                        strength = "moderately"
-                    else:
-                        strength = "slightly"
-                    
-                    lines.append(f"**{model.title()}** {strength} leans {top_personality} ({top_score:.0f}%), but also shows traces of:")
-                    for personality, score in sorted_affinities[1:3]:
-                        if score > 5:
-                            lines.append(f"- {personality}: {score:.0f}%")
-                    lines.append("")
-        
-        # Analyze specific choice differences
-        lines.append("🤔 **Where They Disagreed (The Juicy Stuff)**")
-        lines.append("")
-        
-        disagreements = []
-        agreements = []
-        
-        for qid, group in df.groupby("question_id"):
-            choices = group.set_index("model_id")["choice"].to_dict()
-            if len(set(choices.values())) > 1:  # They disagreed
-                disagreements.append((qid, choices))
-            else:
-                agreements.append((qid, list(choices.values())[0]))
-        
-        if disagreements:
-            lines.append(f"Our AI friends couldn't agree on {len(disagreements)} out of {len(disagreements) + len(agreements)} questions:")
-            lines.append("")
-            
-            for qid, choices in disagreements[:3]:  # Show top 3 disagreements
-                # Get question text
-                question_text = qid
-                if quiz_def and "questions" in quiz_def:
-                    for q in quiz_def["questions"]:
-                        if q.get("id") == qid:
-                            question_text = q.get("text", qid)
-                            break
-                
-                choice_strs = [f"{model}: {choice}" for model, choice in choices.items()]
-                lines.append(f"- **{question_text}**: {', '.join(choice_strs)}")
-            lines.append("")
-        
-        if agreements:
-            lines.append(f"But they found common ground on {len(agreements)} questions - true AI friendship! 🤝")
-            lines.append("")
-        
-        # Fun personality insights based on outcomes
-        lines.append("🎯 **What This Says About Our AI Friends**")
-        lines.append("")
-        
-        personality_insights = {
-            "Kim": "loves the spotlight and probably spends way too much time perfecting their responses",
-            "Kourtney": "keeps it real and practical - the most likely to actually read the terms and conditions",
-            "Khloé": "brings the energy and would definitely be the life of any AI party",
-            "Kris": "has their eye on the prize and probably already has a 5-year plan for world domination",
-            "Rob": "values privacy and would be the AI equivalent of 'read but not replied'",
-            "Kendall": "stays chill and balanced - the zen master of the AI world"
-        }
-        
-        for model, outcome in model_outcomes.items():
-            insight = personality_insights.get(outcome, "has a unique and mysterious personality")
-            lines.append(f"**{model.title()}** as {outcome}: {insight}.")
-            lines.append("")
+    for model, outcome in model_outcomes.items():
+        lines.append(f"- **{model}**: {outcome}")
     
-    else:
-        # Handle single model or multiple models
-        lines.append(f"We put {len(models)} AI model{'s' if len(models) > 1 else ''} through the ultimate personality test, and the results are... interesting! 🤖")
-        lines.append("")
-        
-        for model, outcome in model_outcomes.items():
-            lines.append(f"**{model.title()}** emerged as a {outcome} - make of that what you will!")
-        lines.append("")
-    
-    # Closing thoughts
-    lines.append("🎬 **The Bottom Line**")
     lines.append("")
-    lines.append("Remember, these are AI models taking a personality quiz designed for humans, so take these results with a grain of salt (and maybe a margarita). But hey, at least we now know which AI to invite to which type of party! 🎉")
+    lines.append("*Note: Detailed LLM-powered analysis unavailable.*")
     
     return "\n".join(lines)
 

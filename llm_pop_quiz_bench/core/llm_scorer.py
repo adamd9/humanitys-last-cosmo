@@ -35,6 +35,35 @@ If the quiz uses:
 
 Return ONLY the outcome name/text, nothing else."""
 
+SUMMARY_PROMPT = """You are an expert analyst specializing in AI model behavior and personality assessment. Your task is to create an engaging, insightful summary of quiz results where multiple AI models took a personality quiz.
+
+Quiz Information:
+{quiz_definition}
+
+Model Results:
+{model_results}
+
+Affinity Scores (if available):
+{affinity_scores}
+
+Instructions:
+1. Analyze the quiz type, questions, and possible outcomes
+2. Compare and contrast how different AI models responded
+3. Identify interesting patterns, agreements, and disagreements
+4. Provide insights into what the results might reveal about each model's "personality"
+5. Keep the tone engaging, fun, and insightful (but not overly silly)
+6. Use markdown formatting for structure
+7. Include specific examples from the data
+8. Avoid making claims about actual AI consciousness or emotions
+
+Generate a comprehensive summary section that would fit well in a research report. Focus on:
+- Key findings and patterns
+- Notable differences between models
+- Interesting insights about the quiz responses
+- What this might tell us about AI model behavior
+
+Return your analysis as a well-formatted markdown section."""
+
 
 def score_quiz_with_llm(
     quiz_def: dict,
@@ -92,6 +121,65 @@ def score_quiz_with_llm(
         # Log error but don't crash - return empty result
         print(f"Warning: LLM scoring failed: {e}")
         return ""
+
+
+def generate_summary_with_llm(
+    quiz_def: dict,
+    model_results: dict,
+    affinity_scores: dict = None,
+    model_name: str = "gpt-4o-mini"
+) -> str:
+    """
+    Generate an engaging summary of quiz results using an LLM.
+    
+    Args:
+        quiz_def: The quiz definition with questions and outcomes
+        model_results: Dictionary mapping model_id to outcome
+        affinity_scores: Optional affinity scores across outcome dimensions
+        model_name: OpenAI model to use for generation
+    
+    Returns:
+        Generated markdown summary text
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return "**Summary Generation Unavailable**\n\nOpenAI API key not configured."
+    
+    try:
+        # Format the data for the LLM
+        quiz_json = json.dumps(quiz_def, indent=2, ensure_ascii=False)
+        results_json = json.dumps(model_results, indent=2, ensure_ascii=False)
+        affinity_json = json.dumps(affinity_scores, indent=2, ensure_ascii=False) if affinity_scores else "Not available"
+        
+        prompt = SUMMARY_PROMPT.format(
+            quiz_definition=quiz_json,
+            model_results=results_json,
+            affinity_scores=affinity_json
+        )
+        
+        # Set up OpenAI client
+        proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("HTTP_PROXY")
+        http_client = httpx.Client(proxies=proxy) if proxy else None
+        client = openai.OpenAI(api_key=api_key, http_client=http_client)
+        
+        # Make the API call
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are an expert analyst specializing in AI model behavior and personality assessment."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,  # Some creativity but still focused
+            max_tokens=1500   # Longer response for comprehensive summary
+        )
+        
+        result = response.choices[0].message.content.strip()
+        return result
+        
+    except Exception as e:
+        # Log error but provide fallback
+        print(f"Warning: LLM summary generation failed: {e}")
+        return f"**Summary Generation Failed**\n\nUnable to generate LLM-powered summary: {str(e)[:100]}..."
 
 
 def score_quiz_fallback(
