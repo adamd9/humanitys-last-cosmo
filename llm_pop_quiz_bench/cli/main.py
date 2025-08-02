@@ -23,8 +23,8 @@ app = typer.Typer()
 
 
 @app.command("quiz:run")
-def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonnet,google:gemini-1.5-flash") -> None:
-    """Run a quiz with the specified models."""
+def quiz_run(quiz: Path, models: str = None) -> None:
+    """Run a quiz with all available models (default) or specified models for testing."""
 
     run_id = uuid.uuid4().hex
     adapters = []
@@ -40,6 +40,26 @@ def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonne
         results_base_dir = Path("results")
     
     results_dir = results_base_dir / run_dir_name
+    
+    # If no models specified, use all available models
+    if models is None:
+        available_models = []
+        if use_mocks:
+            available_models = ["openai:gpt-4o", "anthropic:claude-3-5-sonnet", "google:gemini-1.5-flash"]
+        else:
+            if os.environ.get("OPENAI_API_KEY"):
+                available_models.append("openai:gpt-4o")
+            if os.environ.get("ANTHROPIC_API_KEY"):
+                available_models.append("anthropic:claude-3-5-sonnet")
+            if os.environ.get("GOOGLE_API_KEY"):
+                available_models.append("google:gemini-1.5-flash")
+        
+        if not available_models:
+            typer.echo("❌ No API keys found. Please set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY")
+            raise typer.Exit(1)
+        
+        models = ",".join(available_models)
+        typer.echo(f"🤖 Using all available models: {models}")
     
     for m in models.split(","):
         provider, model = m.split(":", 1)

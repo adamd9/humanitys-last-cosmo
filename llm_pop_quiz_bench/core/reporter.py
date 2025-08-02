@@ -588,18 +588,24 @@ def generate_charts(df: pd.DataFrame, out_dir: Path, run_id: str, quiz_id: str, 
             paths["model_outcomes"] = img_path
         
         # 3. Outcome-Dimension Radar Chart - Show model affinity across all outcome dimensions
-        if len(unique_outcomes) >= 3:
-            outcome_affinity_scores = calculate_outcome_affinities(outcome_df, quiz_def)
-            if outcome_affinity_scores:
+        outcome_affinity_scores = calculate_outcome_affinities(outcome_df, quiz_def)
+        
+        if outcome_affinity_scores and len(outcome_affinity_scores) > 0:
+            # Check if we have multiple possible outcomes in quiz definition (not just final outcomes)
+            all_quiz_outcomes = [outcome.get("text", outcome.get("id", "")) for outcome in quiz_def.get("outcomes", [])]
+            if len(all_quiz_outcomes) >= 3:
                 radar_path = create_outcome_radar_chart(outcome_affinity_scores, out_dir, run_id, quiz_id)
                 if radar_path:
                     paths["outcome_radar"] = radar_path
         
         # 4. Outcome-Dimension Heatmap - Model vs All Outcome Dimensions
-        if len(models) > 1 and len(unique_outcomes) > 1:
-            heatmap_path = create_outcome_heatmap(outcome_df, quiz_def, out_dir, run_id, quiz_id)
-            if heatmap_path:
-                paths["outcome_heatmap"] = heatmap_path
+        if outcome_affinity_scores and len(models) >= 1:
+            # Generate heatmap even with single model to show affinity distribution
+            all_quiz_outcomes = [outcome.get("text", outcome.get("id", "")) for outcome in quiz_def.get("outcomes", [])]
+            if len(all_quiz_outcomes) > 1:
+                heatmap_path = create_outcome_heatmap(outcome_df, quiz_def, out_dir, run_id, quiz_id)
+                if heatmap_path:
+                    paths["outcome_heatmap"] = heatmap_path
         
         return paths
     
