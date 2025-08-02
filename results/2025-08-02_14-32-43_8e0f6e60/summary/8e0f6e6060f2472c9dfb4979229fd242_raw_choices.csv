@@ -1,0 +1,13 @@
+question_id,choice,reason,refused,latency_ms,tokens_in,tokens_out,run_id,quiz_id,model_id
+q1,B,I like to stay hydrated and keep it simple.,False,1227,115,22,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai
+q2,A,I love starting the weekend with some fun and socializing.,False,1152,130,24,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai
+q3,A,I love indulging in high-end fashion and glam.,False,1314,128,23,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai
+q4,A,I love sharing photos and keeping up with friends' updates.,False,1064,108,24,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai
+q5,D,I am always focused on achieving my goals.,False,945,116,21,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai
+q6,C,I love the excitement of an unplanned adventure.,False,2276,125,22,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai
+q1,B,I'm trying to be healthy(ish) and hydrated.,False,1795,118,30,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google
+q2,A,I love a good girls' night out!,False,669,140,26,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google
+q3,B,"Friends are more important than clothes, and it's more fun to share the wealth!",False,912,140,35,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google
+q4,A,I'm all about the aesthetically pleasing photos and filters.,False,647,112,29,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google
+q5,B,I'm all about functionality and making things work.,False,858,122,28,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google
+q6,C,Spontaneous fun is always a good time!,False,683,131,26,8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google
