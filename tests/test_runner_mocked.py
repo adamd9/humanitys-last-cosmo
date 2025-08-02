@@ -31,16 +31,36 @@ async def _run(tmp_path: Path):
     quiz_path = tmp_path / "quiz.yaml"
     with open(quiz_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(quiz, f)
-    out_dir = tmp_path / "results"
-    out_dir.mkdir()
-    await run_quiz(quiz_path, [MockAdapter()], "test-run", out_dir)
-    # Check for per-run subfolder structure
-    run_dir = out_dir / "raw" / "test-run"
-    assert run_dir.exists(), "Expected per-run subfolder to exist"
-    raw_files = list(run_dir.glob("*.json"))
-    assert raw_files, "Expected json files in per-run subfolder"
-    data = json.loads(raw_files[0].read_text(encoding="utf-8"))
-    assert "results" in data and data["results"], "Results should contain model entries"
+    # Simulate the new timestamped directory structure that CLI creates
+    from datetime import datetime
+    run_id = "test-run"
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_dir_name = f"{timestamp}_{run_id[:8]}"
+    
+    results_base_dir = tmp_path / "results"
+    timestamped_dir = results_base_dir / run_dir_name
+    
+    await run_quiz(quiz_path, [MockAdapter()], run_id, timestamped_dir)
+    
+    # Check that results are stored in timestamped directory structure
+    assert timestamped_dir.exists(), f"Expected timestamped directory {timestamped_dir}"
+    
+    raw_dir = timestamped_dir / "raw"
+    assert raw_dir.exists(), f"Expected raw subdirectory in {timestamped_dir}"
+    
+    json_files = list(raw_dir.glob("*.json"))
+    assert len(json_files) == 1, f"Expected exactly one JSON file, found {len(json_files)}"
+    
+    # Validate JSON content structure
+    json_file = json_files[0]
+    data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert "run_id" in data
+    assert "quiz_id" in data
+    assert "results" in data
+    # Check for mock adapter results (ID format is "mock:mock")
+    mock_key = next((k for k in data["results"].keys() if "mock" in k), None)
+    assert mock_key is not None, f"Expected mock adapter results, found keys: {list(data['results'].keys())}"
+    assert len(data["results"][mock_key]) == 1  # One question in this test
 
 
 def test_runner_mocked(tmp_path):

@@ -52,9 +52,10 @@ async def run_quiz(
             model_records.append(rec.__dict__)
         all_results[adapter.id] = model_records
 
-    run_results_dir = results_dir / "raw" / run_id
-    run_results_dir.mkdir(parents=True, exist_ok=True)
-    out_path = run_results_dir / f"{quiz['id']}.json"
+    # Create raw subdirectory within the timestamped run directory
+    raw_dir = results_dir / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    out_path = raw_dir / f"{quiz['id']}.json"
     payload = {"run_id": run_id, "quiz_id": quiz["id"], "results": all_results}
     out_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 

@@ -1,0 +1,7 @@
+question_id,choice,reason,refused,latency_ms,tokens_in,tokens_out,run_id,quiz_id,model_id
+q1,B,I like to keep it simple and refreshing.,False,1531,115,21,ce7bc1499e4a4fd6b9fe74f2164c4e97,popsugar_which_kardashian_are_you_2015_01_23,openai
+q2,A,I love starting the weekend with some fun and socializing.,False,1300,130,24,ce7bc1499e4a4fd6b9fe74f2164c4e97,popsugar_which_kardashian_are_you_2015_01_23,openai
+q3,A,I love splurging on high-end fashion.,False,1091,128,22,ce7bc1499e4a4fd6b9fe74f2164c4e97,popsugar_which_kardashian_are_you_2015_01_23,openai
+q4,A,I love sharing and seeing photos of friends and celebrities.,False,1392,108,23,ce7bc1499e4a4fd6b9fe74f2164c4e97,popsugar_which_kardashian_are_you_2015_01_23,openai
+q5,D,I am always focused on achieving my goals.,False,1028,116,21,ce7bc1499e4a4fd6b9fe74f2164c4e97,popsugar_which_kardashian_are_you_2015_01_23,openai
+q6,C,I love the excitement of an unplanned adventure.,False,1105,125,18,ce7bc1499e4a4fd6b9fe74f2164c4e97,popsugar_which_kardashian_are_you_2015_01_23,openai

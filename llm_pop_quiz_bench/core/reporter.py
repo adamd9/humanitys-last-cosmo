@@ -9,6 +9,7 @@ import pandas as pd
 import yaml
 
 from . import visualizer
+from .llm_scorer import score_quiz_with_llm, score_quiz_fallback
 from .scorer import infer_mostly_letter, infer_mostly_tag
 from .store import read_jsonl, write_csv
 
@@ -27,8 +28,24 @@ def write_summary_csv(path: Path, rows: Iterable[dict]) -> None:
 
 def load_results(run_id: str, results_dir: Path) -> pd.DataFrame:
     rows: list[dict] = []
-    # Look for results in the new per-run subfolder structure
-    run_results_dir = results_dir / "raw" / run_id
+    # Look for results in the new timestamped directory structure
+    # First try to find the timestamped directory containing this run_id
+    run_results_dir = None
+    
+    # Check both results and results_mock directories
+    for base_dir in [Path("results"), Path("results_mock")]:
+        if base_dir.exists():
+            for timestamped_dir in base_dir.iterdir():
+                if timestamped_dir.is_dir() and run_id[:8] in timestamped_dir.name:
+                    run_results_dir = timestamped_dir / "raw"
+                    break
+            if run_results_dir:
+                break
+    
+    # Fallback to old structure for backward compatibility
+    if not run_results_dir or not run_results_dir.exists():
+        run_results_dir = results_dir / "raw" / run_id
+    
     if run_results_dir.exists():
         for path in run_results_dir.iterdir():
             if path.suffix == ".json":
@@ -79,41 +96,28 @@ def render_question_table(df: pd.DataFrame) -> str:
 
 
 def compute_model_outcomes(df: pd.DataFrame, quiz_def: dict) -> list[dict[str, str]]:
-    lookup = {}
-    for q in quiz_def.get("questions", []):
-        for opt in q.get("options", []):
-            lookup[(q["id"], opt["id"])] = opt
-
+    """Compute quiz outcomes using LLM-based intelligent scoring."""
     outcomes = []
+    
     for model_id, g in df.groupby("model_id"):
-        letter_hist = g["choice"].value_counts().to_dict()
-        tag_hist: dict[str, int] = {}
-        score = 0
+        # Prepare model responses for LLM scoring
+        model_responses = []
         for _, row in g.iterrows():
-            opt = lookup.get((row["question_id"], row["choice"]))
-            if not opt:
-                continue
-            for t in opt.get("tags", []):
-                tag_hist[t] = tag_hist.get(t, 0) + 1
-            if "score" in opt and opt["score"] is not None:
-                score += opt["score"]
-        result = ""
-        for rule in quiz_def.get("outcomes", []):
-            cond = rule.get("condition", {})
-            if "mostly" in cond:
-                if letter_hist and infer_mostly_letter(letter_hist) == cond["mostly"]:
-                    result = rule["result"]
-                    break
-            if "mostlyTag" in cond:
-                if tag_hist and infer_mostly_tag(tag_hist) == cond["mostlyTag"]:
-                    result = rule["result"]
-                    break
-            if "scoreRange" in cond:
-                rng = cond["scoreRange"]
-                if rng.get("min", 0) <= score <= rng.get("max", score):
-                    result = rule["result"]
-                    break
+            model_responses.append({
+                "question_id": row["question_id"],
+                "choice": row["choice"],
+                "reason": row.get("reason", "")
+            })
+        
+        # Try LLM-based scoring first
+        result = score_quiz_with_llm(quiz_def, model_responses)
+        
+        # If LLM scoring fails or returns empty, use fallback
+        if not result:
+            result = score_quiz_fallback(quiz_def, model_responses)
+        
         outcomes.append({"model_id": model_id, "outcome": result})
+    
     return outcomes
 
 
@@ -139,7 +143,23 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
     df = load_results(run_id, results_dir)
     if df.empty:
         raise ValueError(f"No results for run {run_id}")
-    summary_dir = results_dir / "summary"
+    
+    # Find the timestamped directory for this run
+    timestamped_dir = None
+    for base_dir in [Path("results"), Path("results_mock")]:
+        if base_dir.exists():
+            for ts_dir in base_dir.iterdir():
+                if ts_dir.is_dir() and run_id[:8] in ts_dir.name:
+                    timestamped_dir = ts_dir
+                    break
+            if timestamped_dir:
+                break
+    
+    # Fallback to old structure
+    if not timestamped_dir:
+        timestamped_dir = results_dir
+    
+    summary_dir = timestamped_dir / "summary"
     summary_dir.mkdir(parents=True, exist_ok=True)
     write_summary_csv(summary_dir / f"{run_id}.csv", df.to_dict(orient="records"))
 
@@ -171,7 +191,7 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
         md_lines.append("\n## Choices by Question")
         md_lines.append(render_question_table(qdf))
 
-        chart_paths = generate_charts(qdf, results_dir / "charts", run_id, quiz_id)
+        chart_paths = generate_charts(qdf, timestamped_dir / "charts", run_id, quiz_id)
         for path in chart_paths.values():
             rel = path.relative_to(summary_dir.parent)
             md_lines.append(f"\n![{path.stem}]({rel.as_posix()})")
@@ -181,7 +201,7 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
                 qdf,
                 outcomes,
                 quiz_def,
-                results_dir / "pandasai_charts",
+                timestamped_dir / "pandasai_charts",
                 run_id,
                 quiz_id,
             )

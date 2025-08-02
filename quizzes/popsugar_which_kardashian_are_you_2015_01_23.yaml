@@ -6,7 +6,7 @@ source:
 notes: Paraphrased multi-choice personality quiz with pop-culture options.
 questions:
   - id: q1
-    text: Your drink of choice:
+    text: "Your drink of choice:"
     options:
       - id: A
         text: Cosmopolitan
@@ -51,7 +51,7 @@ questions:
       - id: F
         text: Seed a passion project.
   - id: q4
-    text: Favorite app:
+    text: "Favorite app:"
     options:
       - id: A
         text: Instagram
@@ -66,7 +66,7 @@ questions:
       - id: F
         text: Short-video craze (RIP Vine energy)
   - id: q5
-    text: Your personal brand in one word:
+    text: "Your personal brand in one word:"
     options:
       - id: A
         text: Polished
@@ -81,7 +81,7 @@ questions:
       - id: F
         text: Family-first
   - id: q6
-    text: Pick a weekend plot twist:
+    text: "Pick a weekend plot twist:"
     options:
       - id: A
         text: Surprise glam shoot.

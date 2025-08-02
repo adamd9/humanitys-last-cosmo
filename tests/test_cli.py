@@ -33,10 +33,16 @@ def test_cli_mock_results_dir(tmp_path, monkeypatch):
 
     quiz_run(quiz_path)
 
-    raw_dir = tmp_path / "results" / "mock" / "raw"
-    # Check for per-run subfolders containing result files
-    run_dirs = [d for d in raw_dir.iterdir() if d.is_dir()]
-    assert len(run_dirs) >= 1, "Expected at least one run directory"
-    # Check that the run directory contains json files
+    # Check for timestamped directories in results_mock
+    results_mock_dir = tmp_path / "results_mock"
+    assert results_mock_dir.exists(), "Expected results_mock directory"
+    
+    # Check for timestamped run directories
+    run_dirs = [d for d in results_mock_dir.iterdir() if d.is_dir()]
+    assert len(run_dirs) >= 1, "Expected at least one timestamped run directory"
+    
+    # Check that the timestamped run directory contains raw subdirectory with json files
     run_dir = run_dirs[0]
-    assert any(run_dir.glob("*.json")), f"Expected json files in {run_dir}"
+    raw_dir = run_dir / "raw"
+    assert raw_dir.exists(), f"Expected raw subdirectory in {run_dir}"
+    assert any(raw_dir.glob("*.json")), f"Expected json files in {raw_dir}"

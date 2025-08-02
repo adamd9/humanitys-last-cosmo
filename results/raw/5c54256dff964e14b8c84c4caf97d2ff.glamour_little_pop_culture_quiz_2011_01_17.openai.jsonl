@@ -1,3 +1,0 @@
-{"question_id": "q1", "choice": "A", "reason": "I value a calm and logical approach in stressful situations.", "refused": false, "latency_ms": 1772, "tokens_in": 134, "tokens_out": 23}
-{"question_id": "q2", "choice": "D", "reason": "The family dog always brings joy and no drama.", "refused": false, "latency_ms": 1345, "tokens_in": 130, "tokens_out": 22}
-{"question_id": "q3", "choice": "A", "reason": "I love the emotional intensity of power ballads.", "refused": false, "latency_ms": 1161, "tokens_in": 128, "tokens_out": 22}

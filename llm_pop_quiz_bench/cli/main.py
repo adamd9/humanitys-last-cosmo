@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from ..adapters.anthropic_adapter import AnthropicAdapter
+from ..adapters.google_adapter import GoogleAdapter
 from ..adapters.mock_adapter import MockAdapter
 from ..adapters.openai_adapter import OpenAIAdapter
 from ..core import reporter
@@ -21,13 +23,23 @@ app = typer.Typer()
 
 
 @app.command("quiz:run")
-def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonnet") -> None:
+def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonnet,google:gemini-1.5-flash") -> None:
     """Run a quiz with the specified models."""
 
     run_id = uuid.uuid4().hex
     adapters = []
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
-    results_dir = Path("results/mock" if use_mocks else "results")
+    
+    # Create timestamped run directory
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_dir_name = f"{timestamp}_{run_id[:8]}"
+    
+    if use_mocks:
+        results_base_dir = Path("results_mock")
+    else:
+        results_base_dir = Path("results")
+    
+    results_dir = results_base_dir / run_dir_name
     
     for m in models.split(","):
         provider, model = m.split(":", 1)
@@ -45,6 +57,12 @@ def quiz_run(quiz: Path, models: str = "openai:gpt-4o,anthropic:claude-3-5-sonne
                 adapters.append(AnthropicAdapter(model=model, api_key_env="ANTHROPIC_API_KEY"))
             else:
                 typer.echo(f"⚠️  Skipping {provider}:{model} - ANTHROPIC_API_KEY not found in environment", err=True)
+        elif provider == "google":
+            api_key = os.environ.get("GOOGLE_API_KEY")
+            if api_key:
+                adapters.append(GoogleAdapter(model=model, api_key_env="GOOGLE_API_KEY"))
+            else:
+                typer.echo(f"⚠️  Skipping {provider}:{model} - GOOGLE_API_KEY not found in environment", err=True)
         else:
             typer.echo(f"⚠️  Skipping {provider}:{model} - Unknown provider '{provider}'", err=True)
 
@@ -80,11 +98,8 @@ def quiz_convert(text_file: Path, model: str = "gpt-4o") -> None:
 @app.command("quiz:report")
 def quiz_report(run_id: str, results_dir: Path = Path("results")) -> None:
     """Generate Markdown and CSV summaries for a run."""
-    if (
-        results_dir == Path("results")
-        and os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
-    ):
-        results_dir = Path("results/mock")
+    # The new directory structure doesn't need special handling here
+    # The reporter will automatically find the timestamped directory
     reporter.generate_markdown_report(run_id, results_dir)
 
 
