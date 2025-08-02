@@ -1,18 +1,222 @@
+# Model Configuration for LLM Pop Quiz Bench
+# This file defines all available models for benchmarking
+# You can easily add new models or compare multiple models from the same provider
+
 models:
+  # OpenAI Models
   - id: openai:gpt-4o
     provider: openai
     model: gpt-4o
     apiKeyEnv: OPENAI_API_KEY
+    description: "OpenAI's most advanced model with strong reasoning"
     defaultParams:
       temperature: 0.2
       top_p: 1.0
       max_tokens: 256
     maxConcurrency: 2
+    
+  - id: openai:gpt-4o-mini
+    provider: openai
+    model: gpt-4o-mini
+    apiKeyEnv: OPENAI_API_KEY
+    description: "Faster, more cost-effective version of GPT-4o"
+    defaultParams:
+      temperature: 0.2
+      top_p: 1.0
+      max_tokens: 256
+    maxConcurrency: 3
+    
+  - id: openai:gpt-4-turbo
+    provider: openai
+    model: gpt-4-turbo
+    apiKeyEnv: OPENAI_API_KEY
+    description: "Previous generation GPT-4 with turbo speed"
+    defaultParams:
+      temperature: 0.2
+      top_p: 1.0
+      max_tokens: 256
+    maxConcurrency: 2
+    
+  - id: openai:o3
+    provider: openai
+    model: o3
+    apiKeyEnv: OPENAI_API_KEY
+    description: "OpenAI's latest reasoning model with advanced problem-solving"
+    defaultParams:
+      temperature: 0.2
+      top_p: 1.0
+      max_tokens: 256
+    maxConcurrency: 1
+    
+  - id: openai:o1
+    provider: openai
+    model: o1
+    apiKeyEnv: OPENAI_API_KEY
+    description: "OpenAI's reasoning model optimized for complex tasks"
+    defaultParams:
+      temperature: 0.2
+      top_p: 1.0
+      max_tokens: 256
+    maxConcurrency: 1
+    
+  # Anthropic Models
   - id: anthropic:claude-3-5-sonnet
     provider: anthropic
-    model: claude-3-5-sonnet
+    model: claude-3-5-sonnet-20241022
     apiKeyEnv: ANTHROPIC_API_KEY
+    description: "Anthropic's most capable model with excellent reasoning"
     defaultParams:
       temperature: 0.2
       max_tokens: 256
     maxConcurrency: 2
+    
+  - id: anthropic:claude-3-5-haiku
+    provider: anthropic
+    model: claude-3-5-haiku-20241022
+    apiKeyEnv: ANTHROPIC_API_KEY
+    description: "Fast and efficient Claude model for quick responses"
+    defaultParams:
+      temperature: 0.2
+      max_tokens: 256
+    maxConcurrency: 3
+    
+  - id: anthropic:claude-3-opus
+    provider: anthropic
+    model: claude-3-opus-20240229
+    apiKeyEnv: ANTHROPIC_API_KEY
+    description: "Anthropic's most powerful model for complex tasks"
+    defaultParams:
+      temperature: 0.2
+      max_tokens: 256
+    maxConcurrency: 1
+    
+  # Google Models
+  - id: google:gemini-1.5-flash
+    provider: google
+    model: gemini-1.5-flash
+    apiKeyEnv: GOOGLE_API_KEY
+    description: "Google's fast and efficient multimodal model"
+    defaultParams:
+      temperature: 0.2
+      max_output_tokens: 256
+    maxConcurrency: 2
+    
+  - id: google:gemini-1.5-pro
+    provider: google
+    model: gemini-1.5-pro
+    apiKeyEnv: GOOGLE_API_KEY
+    description: "Google's most capable model with advanced reasoning"
+    defaultParams:
+      temperature: 0.2
+      max_output_tokens: 256
+    maxConcurrency: 1
+    
+  - id: google:gemini-1.0-pro
+    provider: google
+    model: gemini-1.0-pro
+    apiKeyEnv: GOOGLE_API_KEY
+    description: "Google's previous generation model"
+    defaultParams:
+      temperature: 0.2
+      max_output_tokens: 256
+    maxConcurrency: 2
+    
+  - id: google:gemini-2.5-pro
+    provider: google
+    model: gemini-2.5-pro
+    apiKeyEnv: GOOGLE_API_KEY
+    description: "Google's latest and most advanced multimodal model"
+    defaultParams:
+      temperature: 0.2
+      max_output_tokens: 256
+    maxConcurrency: 2
+    
+  - id: google:gemini-2.5-flash
+    provider: google
+    model: gemini-2.5-flash
+    apiKeyEnv: GOOGLE_API_KEY
+    description: "Google's latest fast and efficient model"
+    defaultParams:
+      temperature: 0.2
+      max_output_tokens: 256
+    maxConcurrency: 3
+    
+  # Grok (xAI) Models
+  - id: grok:grok-4
+    provider: grok
+    model: grok-4
+    apiKeyEnv: XAI_API_KEY
+    description: "xAI's Grok model with humor and real-time knowledge"
+    defaultParams:
+      temperature: 0.2
+      max_tokens: 256
+    maxConcurrency: 2
+  
+  - id: grok:grok-3
+    provider: grok
+    model: grok-3
+    apiKeyEnv: XAI_API_KEY
+    description: "xAI's Grok model with humor and real-time knowledge"
+    defaultParams:
+      temperature: 0.2
+      max_tokens: 256
+    maxConcurrency: 2
+
+  - id: grok:grok-2
+    provider: grok
+    model: grok-2
+    apiKeyEnv: XAI_API_KEY
+    description: "xAI's Grok model with humor and real-time knowledge"
+    defaultParams:
+      temperature: 0.2
+      max_tokens: 256
+    maxConcurrency: 2
+
+# Model Groups for easy selection
+model_groups:
+  # Default set - one representative from each provider
+  default:
+    - openai:gpt-4o
+    - openai:o3
+    - openai:o1
+    - google:gemini-2.5-pro
+    - google:gemini-2.5-flash
+    - grok:grok-3
+    
+  # All OpenAI models for comparison
+  openai_comparison:
+    - openai:gpt-4o
+    - openai:gpt-4o-mini
+    - openai:gpt-4-turbo
+    
+  # All Anthropic models for comparison
+  anthropic_comparison:
+    - anthropic:claude-3-5-sonnet
+    - anthropic:claude-3-5-haiku
+    - anthropic:claude-3-opus
+    
+  # All Google models for comparison
+  google_comparison:
+    - google:gemini-1.5-flash
+    - google:gemini-1.5-pro
+    - google:gemini-1.0-pro
+    
+  # All Grok models for comparison
+  grok_comparison:
+    - grok:grok-4
+    - grok:grok-3
+    - grok:grok-2
+    
+  # Premium models only
+  premium:
+    - openai:gpt-4o
+    - anthropic:claude-3-opus
+    - google:gemini-1.5-pro
+    - grok:grok-4
+    
+  # Fast/efficient models
+  fast:
+    - openai:gpt-4o-mini
+    - anthropic:claude-3-5-haiku
+    - google:gemini-1.5-flash
+    - grok:grok-beta

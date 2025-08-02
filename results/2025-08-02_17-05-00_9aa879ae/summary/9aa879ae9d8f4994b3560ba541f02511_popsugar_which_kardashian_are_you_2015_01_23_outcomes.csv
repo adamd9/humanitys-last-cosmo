@@ -1,3 +1,0 @@
-run_id,quiz_id,model_id,outcome_id,outcome_text,total_questions,choice_distribution
-9aa879ae9d8f4994b3560ba541f02511,popsugar_which_kardashian_are_you_2015_01_23,google,Rob,Rob,6,"{'E': 3, 'B': 2, 'D': 1}"
-9aa879ae9d8f4994b3560ba541f02511,popsugar_which_kardashian_are_you_2015_01_23,openai,Rob,Rob,6,"{'E': 2, 'B': 1, 'F': 1, 'A': 1, 'C': 1}"
