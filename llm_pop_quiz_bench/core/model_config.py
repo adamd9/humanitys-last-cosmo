@@ -50,6 +50,8 @@ class ModelConfig:
         
         # Override the adapter's ID to use our unique model ID
         adapter.id = self.id
+        # Pass through the default parameters from model configuration
+        adapter.default_params = self.default_params
         return adapter
 
 

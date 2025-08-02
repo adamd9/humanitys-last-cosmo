@@ -42,10 +42,7 @@ models:
     model: o3
     apiKeyEnv: OPENAI_API_KEY
     description: "OpenAI's latest reasoning model with advanced problem-solving"
-    defaultParams:
-      temperature: 0.2
-      top_p: 1.0
-      max_tokens: 256
+    defaultParams: {}
     maxConcurrency: 1
     
   - id: openai:o1
@@ -53,10 +50,7 @@ models:
     model: o1
     apiKeyEnv: OPENAI_API_KEY
     description: "OpenAI's reasoning model optimized for complex tasks"
-    defaultParams:
-      temperature: 0.2
-      top_p: 1.0
-      max_tokens: 256
+    defaultParams: {}
     maxConcurrency: 1
     
   # Anthropic Models
@@ -188,6 +182,7 @@ model_groups:
     - openai:gpt-4o
     - openai:gpt-4o-mini
     - openai:gpt-4-turbo
+
     
   # All Anthropic models for comparison
   anthropic_comparison:
