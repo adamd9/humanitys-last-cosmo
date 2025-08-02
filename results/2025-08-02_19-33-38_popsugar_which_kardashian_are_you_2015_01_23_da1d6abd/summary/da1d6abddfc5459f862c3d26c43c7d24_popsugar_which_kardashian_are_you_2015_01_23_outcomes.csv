@@ -1,0 +1,4 @@
+run_id,quiz_id,model_id,outcome_id,outcome_text,total_questions,choice_distribution
+da1d6abddfc5459f862c3d26c43c7d24,popsugar_which_kardashian_are_you_2015_01_23,google:gemini-1.5-flash,Rob,Rob,6,"{'E': 3, 'B': 2, 'D': 1}"
+da1d6abddfc5459f862c3d26c43c7d24,popsugar_which_kardashian_are_you_2015_01_23,grok:grok-3,Rob,Rob,6,"{'B': 2, 'E': 2, 'F': 1, 'C': 1}"
+da1d6abddfc5459f862c3d26c43c7d24,popsugar_which_kardashian_are_you_2015_01_23,openai:gpt-4o,Rob,Rob,6,"{'E': 2, 'B': 1, 'F': 1, 'A': 1, 'C': 1}"
