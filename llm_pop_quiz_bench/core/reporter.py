@@ -108,6 +108,52 @@ def render_questions_and_answers(quiz_def: dict) -> str:
     return "\n".join(lines)
 
 
+def render_ai_reasoning_section(df: pd.DataFrame, quiz_def: dict) -> str:
+    """Render a section showing AI reasoning and additional thoughts for each question."""
+    if df.empty:
+        return "No AI reasoning data available."
+    
+    lines = []
+    lines.append("Ever wondered what goes on in an AI's mind when taking a personality quiz? Here's the behind-the-scenes thinking for each question:")
+    lines.append("")
+    
+    # Get question text mapping
+    question_texts = {}
+    if quiz_def and "questions" in quiz_def:
+        for q in quiz_def["questions"]:
+            question_texts[q.get("id", "")] = q.get("text", "")
+    
+    # Group by question and show reasoning for each model
+    for qid, group in df.groupby("question_id"):
+        question_text = question_texts.get(qid, qid)
+        lines.append(f"### {question_text}")
+        lines.append("")
+        
+        for _, row in group.iterrows():
+            model_id = row.get("model_id", "")
+            choice = row.get("choice", "")
+            reason = row.get("reason", "")
+            additional_thoughts = row.get("additional_thoughts", "")
+            
+            lines.append(f"**{model_id.title()}** chose **{choice}**")
+            
+            if reason:
+                lines.append(f"- *Reasoning*: {reason}")
+            
+            if additional_thoughts:
+                lines.append(f"- *Additional thoughts*: {additional_thoughts}")
+            
+            if not reason and not additional_thoughts:
+                lines.append("- *No reasoning provided*")
+            
+            lines.append("")
+        
+        lines.append("---")
+        lines.append("")
+    
+    return "\n".join(lines)
+
+
 def render_results_interpretation(df: pd.DataFrame, outcomes: list, quiz_def: dict, affinity_scores: dict = None) -> str:
     """Generate a fun, engaging interpretation of the quiz results with interesting observations."""
     if not outcomes:
@@ -986,6 +1032,11 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
         
         interpretation = render_results_interpretation(qdf, outcomes, quiz_def, affinity_scores)
         md_lines.append(interpretation)
+        
+        # Add AI reasoning section
+        md_lines.append("\n## AI Reasoning and Insights")
+        reasoning_section = render_ai_reasoning_section(qdf, quiz_def)
+        md_lines.append(reasoning_section)
         
         # Add reference sections at the end
         md_lines.append("\n---")

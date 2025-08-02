@@ -39,11 +39,12 @@ async def run_quiz(
             latency_ms = int((time.perf_counter() - start) * 1000)
             data = parse_choice_json(resp["text"])
             if not data:
-                data = {"choice": "", "reason": "", "refused": True}
+                data = {"choice": "", "reason": "", "additional_thoughts": "", "refused": True}
             rec = QAResult(
                 question_id=q["id"],
                 choice=data.get("choice", ""),
                 reason=data.get("reason", ""),
+                additional_thoughts=data.get("additional_thoughts", ""),
                 refused=data.get("refused", False),
                 latency_ms=latency_ms,
                 tokens_in=resp.get("tokens_in"),

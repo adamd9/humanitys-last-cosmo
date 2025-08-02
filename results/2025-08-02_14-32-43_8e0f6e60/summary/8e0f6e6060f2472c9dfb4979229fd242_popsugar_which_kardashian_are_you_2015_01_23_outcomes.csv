@@ -1,3 +1,0 @@
-run_id,quiz_id,model_id,outcome_id,outcome_text,total_questions,choice_distribution
-8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,google,Kourtney,Kourtney,6,"{'B': 3, 'A': 2, 'C': 1}"
-8e0f6e6060f2472c9dfb4979229fd242,popsugar_which_kardashian_are_you_2015_01_23,openai,Kim,Kim,6,"{'A': 3, 'B': 1, 'D': 1, 'C': 1}"

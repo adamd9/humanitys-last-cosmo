@@ -1,22 +1,19 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from string import ascii_uppercase
 
 TEMPLATE = (
     "SYSTEM:\n"
-    "You are taking a lighthearted magazine personality quiz.\n"
-    "For this quiz, role-play as a human answering honestly for fun.\n\n"
+    "You are an AI language model, so you lack human experiences. That's OK.\n"
+    "For each question I send, choose **exactly one** of the provided options that best matches the linguistic patterns you typically produce.\n"
     "USER:\n"
-    'Quiz: "{quiz_title}"\n'
     "Question {q_num}/{q_total}: {question_text}\n\n"
-    "Choose ONE option by letter and give a brief reason.\n\n"
+    "Choose ONE option by letter and provide your reasoning.\n\n"
     "Options:\n"
-    "A) {optA}\n"
-    "B) {optB}\n"
-    "C) {optC}\n"
-    "D) {optD}\n\n"
-    "Respond in STRICT JSON only:\n"
-    '{{"choice":"<A|B|C|D>","reason":"<one short sentence>"}}'
+    "{options_text}\n"
+    "Respond in STRICT JSON format with your choice and detailed reasoning:\n"
+    '{{"choice":"<{valid_choices}>","reason":"<explain your reasoning in 1-2 sentences>","additional_thoughts":"<any extra thoughts or personality insights (optional)>"}}'
 )
 
 
@@ -30,14 +27,22 @@ class PromptContext:
 
 
 def render_prompt(ctx: PromptContext) -> str:
-    options = ctx.options + [""] * (4 - len(ctx.options))
+    # Generate dynamic options text and valid choices
+    options_lines = []
+    valid_choices = []
+    
+    for i, option_text in enumerate(ctx.options):
+        letter = ascii_uppercase[i]  # A, B, C, D, E, F, etc.
+        options_lines.append(f"{letter}) {option_text}")
+        valid_choices.append(letter)
+    
+    options_text = "\n".join(options_lines)
+    valid_choices_str = "|".join(valid_choices)  # "A|B|C|D" or "A|B|C|D|E|F"
+    
     return TEMPLATE.format(
-        quiz_title=ctx.quiz_title,
         q_num=ctx.q_num,
         q_total=ctx.q_total,
         question_text=ctx.question_text,
-        optA=options[0],
-        optB=options[1],
-        optC=options[2],
-        optD=options[3],
+        options_text=options_text,
+        valid_choices=valid_choices_str,
     )

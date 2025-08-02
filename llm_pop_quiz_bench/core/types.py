@@ -49,6 +49,7 @@ class QAResult:
     question_id: str
     choice: str
     reason: str
+    additional_thoughts: str = ""
     refused: bool = False
     latency_ms: Union[int, None] = None
     tokens_in: Union[int, None] = None
