@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
 from pathlib import Path
 
-import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
 
+from . import visualizer
 from .scorer import infer_mostly_letter, infer_mostly_tag
 from .store import read_jsonl, write_csv
 
@@ -174,6 +175,21 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
         for path in chart_paths.values():
             rel = path.relative_to(summary_dir.parent)
             md_lines.append(f"\n![{path.stem}]({rel.as_posix()})")
+
+        try:
+            vis_paths = visualizer.generate_visualizations(
+                qdf,
+                outcomes,
+                quiz_def,
+                results_dir / "pandasai_charts",
+                run_id,
+                quiz_id,
+            )
+            for path in vis_paths.values():
+                rel = path.relative_to(summary_dir.parent)
+                md_lines.append(f"\n![{path.stem}]({rel.as_posix()})")
+        except Exception:
+            pass
 
         md_content = "\n".join(md_lines)
         md_file = summary_dir / f"{run_id}.{quiz_id}.md"
