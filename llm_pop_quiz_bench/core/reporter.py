@@ -117,11 +117,17 @@ def render_ai_reasoning_section(df: pd.DataFrame, quiz_def: dict) -> str:
     lines.append("Ever wondered what goes on in an AI's mind when taking a personality quiz? Here's the behind-the-scenes thinking for each question:")
     lines.append("")
     
-    # Get question text mapping
-    question_texts = {}
+    # Get question text and option mapping
+    question_texts: dict = {}
+    question_options: dict = {}
     if quiz_def and "questions" in quiz_def:
         for q in quiz_def["questions"]:
-            question_texts[q.get("id", "")] = q.get("text", "")
+            qid = q.get("id", "")
+            question_texts[qid] = q.get("text", "")
+
+            # Build a mapping of answer choice id to its text for each question
+            opts = q.get("options", []) or []
+            question_options[qid] = {opt.get("id", ""): opt.get("text", "") for opt in opts}
     
     # Group by question and show reasoning for each model
     for qid, group in df.groupby("question_id"):
@@ -132,10 +138,15 @@ def render_ai_reasoning_section(df: pd.DataFrame, quiz_def: dict) -> str:
         for _, row in group.iterrows():
             model_id = row.get("model_id", "")
             choice = row.get("choice", "")
+            # Lookup the text associated with the chosen option, if available
+            option_text = question_options.get(qid, {}).get(choice, "")
             reason = row.get("reason", "")
             additional_thoughts = row.get("additional_thoughts", "")
-            
-            lines.append(f"**{model_id.title()}** chose **{choice}**")
+
+            if option_text:
+                lines.append(f"**{model_id.title()}** chose **{choice}: {option_text}**")
+            else:
+                lines.append(f"**{model_id.title()}** chose **{choice}**")
             
             if reason:
                 lines.append(f"- *Reasoning*: {reason}")
