@@ -84,14 +84,103 @@ def load_results(run_id: str, results_dir: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def render_question_table(df: pd.DataFrame) -> str:
+def render_questions_and_answers(quiz_def: dict) -> str:
+    """Render detailed questions and all possible answers for interpretability."""
+    if not quiz_def or "questions" not in quiz_def:
+        return "Questions and answers not available."
+    
+    lines = []
+    for i, question in enumerate(quiz_def["questions"], 1):
+        qid = question.get("id", f"q{i}")
+        qtext = question.get("text", "")
+        
+        lines.append(f"**{qid.upper()}: {qtext}**")
+        lines.append("")
+        
+        # List all possible answers
+        for option in question.get("options", []):
+            option_id = option.get("id", "")
+            option_text = option.get("text", "")
+            lines.append(f"- **{option_id}**: {option_text}")
+        
+        lines.append("")  # Add spacing between questions
+    
+    return "\n".join(lines)
+
+
+def render_method_section(quiz_def: dict) -> str:
+    """Render method section explaining how answers map to outcomes."""
+    if not quiz_def:
+        return "Method information not available."
+    
+    lines = []
+    lines.append("This quiz uses a personality scoring system where each answer choice corresponds to different personality traits. The final outcome is determined by analyzing the pattern of choices across all questions.")
+    lines.append("")
+    
+    # Explain outcome mapping if available
+    if "outcomes" in quiz_def:
+        lines.append("**Outcome Mapping:**")
+        lines.append("")
+        
+        for outcome in quiz_def["outcomes"]:
+            outcome_text = outcome.get("text", outcome.get("id", ""))
+            outcome_mostly = outcome.get("mostly", "")
+            outcome_desc = outcome.get("description", "")
+            
+            if outcome_mostly:
+                lines.append(f"- **{outcome_text}**: Primarily associated with choice '{outcome_mostly}'")
+                if outcome_desc:
+                    lines.append(f"  - {outcome_desc}")
+            else:
+                lines.append(f"- **{outcome_text}**: {outcome_desc}")
+        
+        lines.append("")
+        lines.append("**Scoring Method:**")
+        lines.append("The system analyzes each model's choice distribution across all questions and uses intelligent LLM-based scoring to determine which personality profile best matches the response pattern. This approach allows for nuanced personality assessment beyond simple letter counting.")
+    
+    return "\n".join(lines)
+
+
+def render_question_table(df: pd.DataFrame, quiz_def: dict = None) -> str:
+    """Render a markdown table showing model choices with actual question text and answers."""
     pivot = df.pivot(index="question_id", columns="model_id", values="choice")
     cols = list(pivot.columns)
+    
+    # Create proper markdown table header
     lines = ["| Question | " + " | ".join(cols) + " |"]
-    lines.append("|" + "-" * (len(lines[0]) - 2) + "|")
+    lines.append("|" + "|".join(["-" * 10 for _ in range(len(cols) + 1)]) + "|")
+    
+    # Get question and choice text from quiz definition if available
+    question_texts = {}
+    choice_texts = {}
+    if quiz_def and "questions" in quiz_def:
+        for q in quiz_def["questions"]:
+            qid = q.get("id", "")
+            question_texts[qid] = q.get("text", qid)
+            # Build choice text mapping
+            for choice in q.get("choices", []):
+                choice_id = choice.get("id", "")
+                choice_text = choice.get("text", choice_id)
+                choice_texts[f"{qid}_{choice_id}"] = f"{choice_id}: {choice_text[:50]}{'...' if len(choice_text) > 50 else ''}"
+    
     for qid, row in pivot.iterrows():
-        vals = [str(row.get(c, "")) for c in cols]
-        lines.append("| " + qid + " | " + " | ".join(vals) + " |")
+        # Use question text if available, otherwise use question ID
+        question_display = question_texts.get(qid, qid)
+        if len(question_display) > 80:
+            question_display = question_display[:80] + "..."
+        
+        # Get model choices with answer text if available
+        vals = []
+        for c in cols:
+            choice = str(row.get(c, ""))
+            if choice and f"{qid}_{choice}" in choice_texts:
+                choice_display = choice_texts[f"{qid}_{choice}"]
+            else:
+                choice_display = choice
+            vals.append(choice_display)
+        
+        lines.append("| " + question_display + " | " + " | ".join(vals) + " |")
+    
     return "\n".join(lines)
 
 
@@ -755,15 +844,25 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
             )
         )
         md_lines.append("\n## Choices by Question")
-        md_lines.append(render_question_table(qdf))
+        md_lines.append(render_question_table(qdf, quiz_def))
 
         # Generate charts using outcome-focused data if available
         outcome_csv_path = summary_dir / f"{run_id}_{quiz_id}_outcomes.csv"
         chart_paths = generate_charts(qdf, timestamped_dir / "charts", run_id, quiz_id, outcome_csv_path)
         for chart_type, chart_path in chart_paths.items():
             if chart_path and chart_path.exists():
-                relative_path = f"charts/{chart_path.name}"
+                relative_path = f"../charts/{chart_path.name}"
                 md_lines.append(f"\n![{chart_path.stem}]({relative_path})\n")
+        
+        # Add reference sections at the end
+        md_lines.append("\n---")
+        md_lines.append("\n# Reference")
+        
+        md_lines.append("\n## Questions and Answer Options")
+        md_lines.append(render_questions_and_answers(quiz_def))
+        
+        md_lines.append("\n## Method")
+        md_lines.append(render_method_section(quiz_def))
 
         try:
             vis_paths = visualizer.generate_visualizations(
