@@ -11,6 +11,10 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+from ..adapters.anthropic_adapter import AnthropicAdapter
+from ..adapters.google_adapter import GoogleAdapter
+from ..adapters.mock_adapter import MockAdapter
+from ..adapters.openai_adapter import OpenAIAdapter
 from ..core import reporter
 from ..core.model_config import model_config_loader
 from ..core.quiz_converter import text_to_yaml
