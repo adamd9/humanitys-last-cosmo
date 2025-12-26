@@ -340,6 +340,44 @@ pre {
   text-align: left;
 }
 
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.meta-grid .label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.preview-subsection {
+  display: grid;
+  gap: 8px;
+}
+
+.preview-subsection h4 {
+  margin: 0;
+}
+
+.outcome-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.yaml-preview summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.yaml-preview pre {
+  max-height: 260px;
+  overflow: auto;
+}
+
 .table th {
   color: var(--muted);
 }

@@ -32,7 +32,8 @@ def _init_db(conn: sqlite3.Connection) -> None:
             quiz_id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             source_json TEXT NOT NULL,
-            quiz_yaml TEXT NOT NULL
+            quiz_yaml TEXT NOT NULL,
+            raw_json TEXT NOT NULL DEFAULT '{}'
         );
 
         CREATE TABLE IF NOT EXISTS results (
@@ -59,23 +60,47 @@ def _init_db(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    _ensure_column(conn, "quizzes", "raw_json", "TEXT NOT NULL DEFAULT '{}'", "{}")
     conn.commit()
 
 
-def upsert_quiz(conn: sqlite3.Connection, quiz_def: dict, quiz_yaml: str) -> None:
+def _ensure_column(
+    conn: sqlite3.Connection,
+    table: str,
+    column: str,
+    definition: str,
+    default_value: str | None = None,
+) -> None:
+    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column in columns:
+        return
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+    if default_value is not None:
+        conn.execute(f"UPDATE {table} SET {column} = ? WHERE {column} IS NULL", (default_value,))
+    conn.commit()
+
+
+def upsert_quiz(
+    conn: sqlite3.Connection,
+    quiz_def: dict,
+    quiz_yaml: str,
+    raw_payload: dict | None = None,
+) -> None:
     quiz_id = quiz_def["id"]
     title = quiz_def.get("title", "")
     source_json = json.dumps(quiz_def.get("source", {}), ensure_ascii=False)
+    raw_json = json.dumps(raw_payload or {}, ensure_ascii=False)
     conn.execute(
         """
-        INSERT INTO quizzes (quiz_id, title, source_json, quiz_yaml)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO quizzes (quiz_id, title, source_json, quiz_yaml, raw_json)
+        VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(quiz_id) DO UPDATE SET
             title=excluded.title,
             source_json=excluded.source_json,
-            quiz_yaml=excluded.quiz_yaml
+            quiz_yaml=excluded.quiz_yaml,
+            raw_json=excluded.raw_json
         """,
-        (quiz_id, title, source_json, quiz_yaml),
+        (quiz_id, title, source_json, quiz_yaml, raw_json),
     )
     conn.commit()
 
@@ -232,7 +257,7 @@ def fetch_quiz_yaml(conn: sqlite3.Connection, quiz_id: str) -> str | None:
 def fetch_quizzes(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT quiz_id, title, source_json
+        SELECT quiz_id, title, source_json, raw_json
         FROM quizzes
         ORDER BY quiz_id
         """
@@ -241,6 +266,8 @@ def fetch_quizzes(conn: sqlite3.Connection) -> list[dict]:
     for row in rows:
         item = dict(row)
         item["source"] = json.loads(item.pop("source_json"))
+        raw_payload = json.loads(item.pop("raw_json")) if row["raw_json"] else {}
+        item["raw_available"] = bool(raw_payload)
         items.append(item)
     return items
 
@@ -253,3 +280,18 @@ def fetch_quiz_def(conn: sqlite3.Connection, quiz_id: str) -> dict | None:
     if not row:
         return None
     return yaml.safe_load(row["quiz_yaml"])
+
+
+def fetch_quiz_record(conn: sqlite3.Connection, quiz_id: str) -> dict | None:
+    row = conn.execute(
+        "SELECT quiz_yaml, raw_json FROM quizzes WHERE quiz_id = ?",
+        (quiz_id,),
+    ).fetchone()
+    if not row:
+        return None
+    raw_payload = json.loads(row["raw_json"]) if row["raw_json"] else {}
+    return {
+        "quiz": yaml.safe_load(row["quiz_yaml"]),
+        "quiz_yaml": row["quiz_yaml"],
+        "raw_payload": raw_payload,
+    }
