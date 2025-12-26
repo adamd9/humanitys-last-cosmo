@@ -196,6 +196,40 @@ class QuizLibrary extends HTMLElement {
     }
   }
 
+  async deleteQuiz(quizId) {
+    const status = this.querySelector(".status");
+    const confirmDelete = confirm(
+      "Delete this quiz and any related runs? This action cannot be undone."
+    );
+    if (!confirmDelete) return;
+
+    status.textContent = "Deleting quiz...";
+    try {
+      await fetchJSON(`/api/quizzes/${quizId}`, { method: "DELETE" });
+
+      if (state.quiz?.id === quizId) {
+        state.quiz = null;
+        state.quizYaml = null;
+        state.quizRawPayload = null;
+        state.quizRawPreview = null;
+      }
+
+      if (state.previewQuiz?.id === quizId) {
+        state.previewQuiz = null;
+        state.previewQuizYaml = null;
+        state.previewRawPayload = null;
+        state.previewRawPreview = null;
+      }
+
+      status.textContent = `Deleted quiz: ${quizId}`;
+      await refreshQuizzes();
+      document.dispatchEvent(new CustomEvent("quiz:updated"));
+      this.render();
+    } catch (err) {
+      status.textContent = `Error: ${err.message}`;
+    }
+  }
+
   render() {
     const filter = this.filterText;
     const quizzes = state.quizzes.filter((quiz) => {
@@ -219,6 +253,7 @@ class QuizLibrary extends HTMLElement {
             <button class="secondary" data-quiz="${quiz.quiz_id}">
               ${isActive ? "Selected" : "Use this quiz"}
             </button>
+            <button class="danger" data-delete="${quiz.quiz_id}">Delete</button>
           </div>
         </div>
       `;
@@ -275,6 +310,9 @@ class QuizLibrary extends HTMLElement {
     });
     this.querySelectorAll("button[data-preview]").forEach((btn) => {
       btn.addEventListener("click", () => this.previewQuiz(btn.dataset.preview));
+    });
+    this.querySelectorAll("button[data-delete]").forEach((btn) => {
+      btn.addEventListener("click", () => this.deleteQuiz(btn.dataset.delete));
     });
     this.querySelectorAll("button[data-reprocess]").forEach((btn) => {
       btn.addEventListener("click", () => this.reprocessQuiz(btn.dataset.reprocess));

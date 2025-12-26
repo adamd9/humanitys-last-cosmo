@@ -295,3 +295,20 @@ def fetch_quiz_record(conn: sqlite3.Connection, quiz_id: str) -> dict | None:
         "quiz_yaml": row["quiz_yaml"],
         "raw_payload": raw_payload,
     }
+
+
+def delete_quiz(conn: sqlite3.Connection, quiz_id: str) -> list[str]:
+    run_rows = conn.execute(
+        "SELECT run_id FROM runs WHERE quiz_id = ?",
+        (quiz_id,),
+    ).fetchall()
+    run_ids = [row["run_id"] for row in run_rows]
+
+    if run_ids:
+        conn.executemany("DELETE FROM results WHERE run_id = ?", ((rid,) for rid in run_ids))
+        conn.executemany("DELETE FROM assets WHERE run_id = ?", ((rid,) for rid in run_ids))
+        conn.executemany("DELETE FROM runs WHERE run_id = ?", ((rid,) for rid in run_ids))
+
+    conn.execute("DELETE FROM quizzes WHERE quiz_id = ?", (quiz_id,))
+    conn.commit()
+    return run_ids

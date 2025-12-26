@@ -210,6 +210,12 @@ button.secondary {
   border: 1px solid var(--accent);
 }
 
+button.danger {
+  background: transparent;
+  color: #b3261e;
+  border: 1px solid #b3261e;
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
