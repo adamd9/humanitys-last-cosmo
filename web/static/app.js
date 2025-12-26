@@ -287,7 +287,7 @@ class QuizLibrary extends HTMLElement {
             <h2>Quiz Library</h2>
             <div class="panel-subtitle">Reuse saved quizzes for new runs.</div>
           </div>
-          <span class="badge">${state.quizzes.length} saved</span>
+          <span class="badge">Step 2</span>
         </div>
         <div class="toolbar">
           <input type="text" placeholder="Search quizzes..." value="${this.filterText}" />
@@ -384,7 +384,7 @@ class ModelPicker extends HTMLElement {
             <h2>Model Console</h2>
             <div class="panel-subtitle">Pick a group or cherry-pick models.</div>
           </div>
-          <span class="badge">${state.selectedModels.size} selected</span>
+          <span class="badge">Step 3</span>
         </div>
         <div>
           <label>Model group</label>
@@ -509,7 +509,7 @@ class RunCreator extends HTMLElement {
             <h2>Run Launchpad</h2>
             <div class="panel-subtitle">Choose a quiz, then launch.</div>
           </div>
-          <span class="badge">Step 2</span>
+          <span class="badge">Step 4</span>
         </div>
         <div class="status">${state.quiz ? `Quiz loaded: ${quizTitle}` : "No quiz loaded yet."}</div>
         <div class="status">
@@ -767,12 +767,46 @@ function updateStepVisibility() {
 
 updateStepVisibility();
 
-function formatOutcomeCondition(condition = {}) {
-  if (condition.mostly) return `Mostly ${condition.mostly}`;
-  if (condition.mostlyTag) return `Mostly tag: ${condition.mostlyTag}`;
-  if (condition.scoreRange)
-    return `Score ${condition.scoreRange.min}-${condition.scoreRange.max}`;
-  return "Always";
+const outcomeConditionLabels = {
+  mostly: "Mostly",
+  mostlyTag: "Mostly tag",
+  scoreRange: "Score range",
+  score: "Score",
+  tags: "Tags",
+  tag: "Tag",
+};
+
+function formatOutcomeCondition(outcome = {}) {
+  const entries = [];
+  const condition = outcome.condition && typeof outcome.condition === "object" ? outcome.condition : null;
+  if (condition) {
+    entries.push(...formatConditionEntries(condition));
+  }
+  const directKeys = ["mostly", "mostlyTag", "scoreRange", "score", "tags", "tag"];
+  directKeys.forEach((key) => {
+    if (outcome[key] !== undefined) {
+      entries.push(`${outcomeConditionLabels[key] || key}: ${formatConditionValue(outcome[key])}`);
+    }
+  });
+  const uniqueEntries = [...new Set(entries)];
+  return uniqueEntries.length ? uniqueEntries.join(" · ") : "Always";
+}
+
+function formatConditionEntries(condition = {}) {
+  return Object.entries(condition).map(([key, value]) => {
+    const label = outcomeConditionLabels[key] || key;
+    return `${label}: ${formatConditionValue(value)}`;
+  });
+}
+
+function formatConditionValue(value) {
+  if (value && typeof value === "object") {
+    if (typeof value.min === "number" && typeof value.max === "number") {
+      return `${value.min}-${value.max}`;
+    }
+    return JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function formatOptionDetails(option = {}) {
@@ -825,15 +859,17 @@ function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null, rawPrevie
     .join("");
 
   const outcomes = (quiz.outcomes || [])
-    .map(
-      (outcome) => `
+    .map((outcome) => {
+      const title = outcome.id || outcome.text || outcome.description || "Outcome";
+      const description = outcome.description || outcome.text || outcome.result || "";
+      return `
         <li>
-          <strong>${outcome.id || outcome.text || "Outcome"}</strong>
-          <div class="status">${formatOutcomeCondition(outcome.condition)}</div>
-          <div>${outcome.text || outcome.result || ""}</div>
+          <strong>${title}</strong>
+          <div class="status">${formatOutcomeCondition(outcome)}</div>
+          <div>${description}</div>
         </li>
-      `
-    )
+      `;
+    })
     .join("");
 
   const yamlBlock = quizYaml
