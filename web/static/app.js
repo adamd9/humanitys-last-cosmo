@@ -18,6 +18,10 @@ const state = {
   currentStep: 1,
 };
 
+function notifyModelSelectionChanged() {
+  document.dispatchEvent(new CustomEvent("models:updated"));
+}
+
 async function fetchJSON(url, options) {
   const resp = await fetch(url, options);
   if (!resp.ok) {
@@ -365,6 +369,7 @@ class ModelPicker extends HTMLElement {
       groupSelect.value = state.selectedGroup || "";
       groupSelect.addEventListener("change", (event) => {
         state.selectedGroup = event.target.value;
+        notifyModelSelectionChanged();
       });
     }
     this.querySelector("input[type=text]")?.addEventListener("input", (event) => {
@@ -385,6 +390,7 @@ class ModelPicker extends HTMLElement {
         } else {
           state.selectedModels.delete(input.value);
         }
+        notifyModelSelectionChanged();
         this.render();
       });
     });
@@ -400,6 +406,7 @@ class ModelPicker extends HTMLElement {
             }
           });
         }
+        notifyModelSelectionChanged();
         this.render();
       });
     });
@@ -413,6 +420,7 @@ class RunCreator extends HTMLElement {
   connectedCallback() {
     this.render();
     document.addEventListener("quiz:updated", () => this.render());
+    document.addEventListener("models:updated", () => this.render());
     document.addEventListener("runs:updated", () => this.render());
   }
 
