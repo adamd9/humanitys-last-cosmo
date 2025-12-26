@@ -119,6 +119,8 @@ def test_reprocess_quiz_from_raw(client, monkeypatch):
     monkeypatch.setattr(api_app, "convert_to_yaml", lambda **kwargs: yaml.safe_dump(base_quiz_def))
     resp = client.post("/api/quizzes/parse", data={"text": "initial raw"})
     assert resp.status_code == 200
+    parsed = resp.json()
+    assert parsed["raw_preview"]["text"] == "initial raw"
 
     def reprocess_convert_to_yaml(**kwargs):
         assert kwargs.get("text") == "initial raw"
@@ -132,3 +134,4 @@ def test_reprocess_quiz_from_raw(client, monkeypatch):
     data = reprocess_resp.json()
     assert data["quiz"]["title"] == "Reprocessed Title"
     assert data["raw_payload"]["type"] == "text"
+    assert data["raw_preview"]["text"] == "initial raw"

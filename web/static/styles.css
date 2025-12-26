@@ -368,14 +368,28 @@ pre {
   gap: 8px;
 }
 
-.yaml-preview summary {
+.yaml-preview summary,
+.raw-preview summary {
   cursor: pointer;
   font-weight: 600;
 }
 
-.yaml-preview pre {
+.yaml-preview pre,
+.raw-preview pre {
   max-height: 260px;
   overflow: auto;
+}
+
+.raw-image-frame {
+  display: grid;
+  gap: 8px;
+}
+
+.raw-image-frame img {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 .table th {

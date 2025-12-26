@@ -2,10 +2,12 @@ const state = {
   quiz: null,
   quizYaml: null,
   quizRawPayload: null,
+  quizRawPreview: null,
   quizzes: [],
   previewQuiz: null,
   previewQuizYaml: null,
   previewRawPayload: null,
+  previewRawPreview: null,
   models: [],
   groups: {},
   selectedModels: new Set(),
@@ -63,6 +65,7 @@ class QuizUploader extends HTMLElement {
       state.quiz = data.quiz;
       state.quizYaml = data.quiz_yaml;
       state.quizRawPayload = data.raw_payload || null;
+      state.quizRawPreview = data.raw_preview || null;
       status.textContent = `Parsed quiz: ${state.quiz.id} (saved to library)`;
       this.render();
       await refreshQuizzes();
@@ -140,6 +143,7 @@ class QuizLibrary extends HTMLElement {
       state.quiz = data.quiz;
       state.quizYaml = data.quiz_yaml || null;
       state.quizRawPayload = data.raw_payload || null;
+      state.quizRawPreview = data.raw_preview || null;
       status.textContent = `Loaded quiz: ${quizId}`;
       document.dispatchEvent(new CustomEvent("quiz:updated"));
     } catch (err) {
@@ -155,6 +159,7 @@ class QuizLibrary extends HTMLElement {
       state.previewQuiz = data.quiz;
       state.previewQuizYaml = data.quiz_yaml || null;
       state.previewRawPayload = data.raw_payload || null;
+      state.previewRawPreview = data.raw_preview || null;
       status.textContent = `Previewing: ${quizId}`;
       this.render();
     } catch (err) {
@@ -175,10 +180,12 @@ class QuizLibrary extends HTMLElement {
       state.previewQuiz = data.quiz;
       state.previewQuizYaml = data.quiz_yaml || null;
       state.previewRawPayload = data.raw_payload || null;
+      state.previewRawPreview = data.raw_preview || null;
       if (state.quiz?.id === quizId) {
         state.quiz = data.quiz;
         state.quizYaml = data.quiz_yaml || null;
         state.quizRawPayload = data.raw_payload || null;
+        state.quizRawPreview = data.raw_preview || null;
         document.dispatchEvent(new CustomEvent("quiz:updated"));
       }
       status.textContent = `Reprocessed: ${quizId}`;
@@ -233,6 +240,7 @@ class QuizLibrary extends HTMLElement {
           ${renderQuizPreview(state.previewQuiz, {
             quizYaml: state.previewQuizYaml,
             rawPayload: state.previewRawPayload,
+            rawPreview: state.previewRawPreview,
           })}
         </div>
       `
@@ -275,6 +283,7 @@ class QuizLibrary extends HTMLElement {
       state.previewQuiz = null;
       state.previewQuizYaml = null;
       state.previewRawPayload = null;
+      state.previewRawPreview = null;
       this.render();
     });
     this.querySelector("button[data-next]")?.addEventListener("click", () => {
@@ -739,7 +748,25 @@ function formatOptionDetails(option = {}) {
   return details.length ? ` <span class="status">(${details.join(" · ")})</span>` : "";
 }
 
-function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null } = {}) {
+function renderRawInput(rawPreview) {
+  if (!rawPreview) {
+    return "<div class=\"status\">Raw input not available.</div>";
+  }
+  if (rawPreview.type === "text") {
+    return `<pre class="preview">${rawPreview.text || ""}</pre>`;
+  }
+  if (rawPreview.type === "image" && rawPreview.data_url) {
+    return `
+      <div class="raw-image-frame">
+        <img src="${rawPreview.data_url}" alt="Uploaded quiz image" />
+        <div class="status">${rawPreview.filename || "Uploaded image"} (${rawPreview.mime || ""})</div>
+      </div>
+    `;
+  }
+  return "<div class=\"status\">Raw input not available.</div>";
+}
+
+function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null, rawPreview = null } = {}) {
   const questions = quiz.questions || [];
   const items = questions
     .map((question, index) => {
@@ -780,6 +807,15 @@ function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null } = {}) {
     `
     : "";
 
+  const rawBlock = rawPayload
+    ? `
+      <details class="raw-preview">
+        <summary>View raw ${rawPreview?.type === "image" ? "image" : "text"}</summary>
+        ${renderRawInput(rawPreview)}
+      </details>
+    `
+    : "";
+
   const metaRows = [
     ["Quiz ID", quiz.id || ""],
     ["Type", getQuizType(quiz)],
@@ -807,6 +843,7 @@ function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null } = {}) {
       <h4>Outcomes & scoring</h4>
       <ul class="outcome-list">${outcomes || "<li class='status'>No outcomes defined.</li>"}</ul>
     </div>
+    ${rawBlock}
     ${yamlBlock}
   `;
 }
