@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import os
 import uuid
 from pathlib import Path
@@ -93,6 +94,29 @@ async def _save_upload(upload: UploadFile, dest_dir: Path) -> Path:
     return path
 
 
+def _build_raw_preview(raw_payload: dict | None) -> dict | None:
+    if not raw_payload:
+        return None
+    if raw_payload.get("type") == "text":
+        return {"type": "text", "text": raw_payload.get("text", "")}
+    if raw_payload.get("type") == "image":
+        image_path = Path(raw_payload.get("path", ""))
+        if not image_path.exists():
+            return None
+        mime = raw_payload.get("mime") or "image/png"
+        data_url = (
+            f"data:{mime};base64,"
+            f"{base64.b64encode(image_path.read_bytes()).decode('ascii')}"
+        )
+        return {
+            "type": "image",
+            "data_url": data_url,
+            "mime": mime,
+            "filename": image_path.name,
+        }
+    return None
+
+
 def _run_and_report(
     quiz_path: Path,
     adapters: list,
@@ -152,10 +176,12 @@ def get_quiz(quiz_id: str) -> dict:
     conn.close()
     if not record:
         raise HTTPException(status_code=404, detail="Quiz not found")
+    raw_preview = _build_raw_preview(record.get("raw_payload"))
     return {
         "quiz": record["quiz"],
         "quiz_yaml": record["quiz_yaml"],
         "raw_payload": record.get("raw_payload"),
+        "raw_preview": raw_preview,
     }
 
 
@@ -205,7 +231,12 @@ async def parse_quiz(
     conn = connect(runtime_paths.db_path)
     upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
     conn.close()
-    return {"quiz": quiz_def, "quiz_yaml": yaml_text, "raw_payload": raw_payload}
+    return {
+        "quiz": quiz_def,
+        "quiz_yaml": yaml_text,
+        "raw_payload": raw_payload,
+        "raw_preview": _build_raw_preview(raw_payload),
+    }
 
 
 @app.post("/api/quizzes/{quiz_id}/reprocess")
@@ -260,7 +291,12 @@ async def reprocess_quiz(
     conn = connect(runtime_paths.db_path)
     upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
     conn.close()
-    return {"quiz": quiz_def, "quiz_yaml": yaml_text, "raw_payload": raw_payload}
+    return {
+        "quiz": quiz_def,
+        "quiz_yaml": yaml_text,
+        "raw_payload": raw_payload,
+        "raw_preview": _build_raw_preview(raw_payload),
+    }
 
 
 @app.post("/api/runs")
