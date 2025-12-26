@@ -1,6 +1,6 @@
 quizzes:
   - quizzes/sample_ninja_turtles.yaml
-models: ["openai:gpt-4o", "anthropic:claude-3-5-sonnet"]
+models: ["openrouter:openai/gpt-4o", "openrouter:anthropic/claude-3.5-sonnet"]
 repetitions: 1
 concurrency:
   global: 2

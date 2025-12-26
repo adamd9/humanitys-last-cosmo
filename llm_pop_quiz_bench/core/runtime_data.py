@@ -12,6 +12,7 @@ class RuntimePaths:
     assets_dir: Path
     uploads_dir: Path
     quizzes_dir: Path
+    logs_dir: Path
 
 
 def build_runtime_paths(root: Path) -> RuntimePaths:
@@ -19,11 +20,13 @@ def build_runtime_paths(root: Path) -> RuntimePaths:
     assets_dir = root / "assets"
     uploads_dir = root / "uploads"
     quizzes_dir = root / "quizzes"
+    logs_dir = root / "logs"
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     assets_dir.mkdir(parents=True, exist_ok=True)
     uploads_dir.mkdir(parents=True, exist_ok=True)
     quizzes_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
 
     return RuntimePaths(
         root=root,
@@ -31,6 +34,7 @@ def build_runtime_paths(root: Path) -> RuntimePaths:
         assets_dir=assets_dir,
         uploads_dir=uploads_dir,
         quizzes_dir=quizzes_dir,
+        logs_dir=logs_dir,
     )
 
 

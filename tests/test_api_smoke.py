@@ -89,7 +89,7 @@ def test_create_run_returns_id(client, monkeypatch):
     resp = client.post("/api/quizzes/parse", data={"text": "mock"})
     assert resp.status_code == 200
 
-    run_resp = client.post("/api/runs", json={"quiz_id": "mock-quiz", "models": ["openai:gpt-4o"]})
+    run_resp = client.post("/api/runs", json={"quiz_id": "mock-quiz", "models": ["openrouter:openai/gpt-4o"]})
     assert run_resp.status_code == 200
     assert "run_id" in run_resp.json()
 

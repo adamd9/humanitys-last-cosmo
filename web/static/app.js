@@ -3,24 +3,62 @@ const state = {
   quizYaml: null,
   quizRawPayload: null,
   quizRawPreview: null,
+  quizMeta: null,
   quizzes: [],
   previewQuiz: null,
   previewQuizYaml: null,
   previewRawPayload: null,
   previewRawPreview: null,
+  previewQuizMeta: null,
   models: [],
   groups: {},
   selectedModels: new Set(),
   selectedGroup: "",
   runs: [],
   selectedRun: null,
+  selectedRunData: null,
+  selectedRunQuizMeta: null,
+  selectedRunQuizId: null,
   runResults: [],
   assets: [],
+  runLog: "",
+  runLogExists: false,
   runError: null,
-  currentStep: 1,
+  currentStep: 0,
 };
 
+const MODEL_SELECTION_KEY = "llm_pop_quiz_model_selection";
+
+function loadModelSelection() {
+  try {
+    const raw = localStorage.getItem(MODEL_SELECTION_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.models)) {
+      state.selectedModels = new Set(parsed.models);
+    }
+    if (typeof parsed.group === "string") {
+      state.selectedGroup = parsed.group;
+    }
+  } catch (err) {
+    return;
+  }
+}
+
+function saveModelSelection() {
+  const payload = {
+    models: [...state.selectedModels],
+    group: state.selectedGroup || "",
+  };
+  try {
+    localStorage.setItem(MODEL_SELECTION_KEY, JSON.stringify(payload));
+  } catch (err) {
+    return;
+  }
+}
+
 function notifyModelSelectionChanged() {
+  saveModelSelection();
   document.dispatchEvent(new CustomEvent("models:updated"));
 }
 
@@ -37,6 +75,79 @@ function formatDate(iso) {
   if (!iso) return "";
   const date = new Date(iso);
   return date.toLocaleString();
+}
+
+const ASSET_LABELS = {
+  csv_raw_choices: "Raw choices CSV",
+  csv_outcomes: "Outcome summary CSV",
+  report_markdown: "Markdown report",
+  chart_choices: "Choices chart",
+  chart_comparison: "Choice comparison chart",
+  chart_radar: "Choice radar chart",
+  chart_heatmap: "Choice heatmap",
+  chart_outcomes: "Outcome distribution chart",
+  chart_model_outcomes: "Model-outcome matrix",
+  chart_outcome_radar: "Outcome radar chart",
+  chart_outcome_heatmap: "Outcome heatmap",
+  chart_pandasai: "PandasAI chart",
+};
+
+function getAssetLabel(assetType) {
+  return ASSET_LABELS[assetType] || assetType.replace(/_/g, " ");
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildExpectedAssetTypes(runData, quizMeta, assets) {
+  const expected = [];
+  const add = (type) => {
+    if (!expected.includes(type)) {
+      expected.push(type);
+    }
+  };
+  add("report_markdown");
+  add("csv_raw_choices");
+
+  const modelCount = runData?.models?.length || 0;
+  const hasOutcomes = quizMeta?.has_outcomes;
+  const choiceCount = quizMeta?.choice_count || 0;
+
+  if (hasOutcomes) {
+    add("csv_outcomes");
+    if (modelCount > 1) {
+      add("chart_outcomes");
+      add("chart_model_outcomes");
+      add("chart_outcome_radar");
+      add("chart_outcome_heatmap");
+    } else {
+      add("chart_choices");
+    }
+  } else if (modelCount > 1) {
+    add("chart_comparison");
+    if (choiceCount >= 3) {
+      add("chart_radar");
+    }
+    if (choiceCount > 1) {
+      add("chart_heatmap");
+    }
+  } else {
+    add("chart_choices");
+  }
+
+  (assets || []).forEach((asset) => {
+    if (asset.asset_type && asset.asset_type.startsWith("chart_")) {
+      add(asset.asset_type);
+    }
+  });
+
+  return expected;
 }
 
 class QuizUploader extends HTMLElement {
@@ -66,6 +177,7 @@ class QuizUploader extends HTMLElement {
       state.quizYaml = data.quiz_yaml;
       state.quizRawPayload = data.raw_payload || null;
       state.quizRawPreview = data.raw_preview || null;
+      state.quizMeta = data.quiz_meta || null;
       status.textContent = `Parsed quiz: ${state.quiz.id} (saved to library)`;
       this.render();
       await refreshQuizzes();
@@ -81,8 +193,8 @@ class QuizUploader extends HTMLElement {
       (state.quiz ? "YAML preview is available after parsing a new quiz." : "");
     const quizMeta = state.quiz
       ? `
-        <div class="status">Detected quiz type: ${getQuizType(state.quiz)}</div>
-        <div class="status">Scoring: ${getScoringSummary(state.quiz)}</div>
+        <div class="status">Detected quiz type: ${getQuizTypeLabel(state.quiz, state.quizMeta)}</div>
+        <div class="status">Scoring: ${getScoringSummary(state.quiz, state.quizMeta)}</div>
       `
       : "";
     this.innerHTML = `
@@ -144,6 +256,7 @@ class QuizLibrary extends HTMLElement {
       state.quizYaml = data.quiz_yaml || null;
       state.quizRawPayload = data.raw_payload || null;
       state.quizRawPreview = data.raw_preview || null;
+      state.quizMeta = data.quiz_meta || null;
       status.textContent = `Loaded quiz: ${quizId}`;
       document.dispatchEvent(new CustomEvent("quiz:updated"));
     } catch (err) {
@@ -160,6 +273,7 @@ class QuizLibrary extends HTMLElement {
       state.previewQuizYaml = data.quiz_yaml || null;
       state.previewRawPayload = data.raw_payload || null;
       state.previewRawPreview = data.raw_preview || null;
+      state.previewQuizMeta = data.quiz_meta || null;
       status.textContent = `Previewing: ${quizId}`;
       this.render();
     } catch (err) {
@@ -181,11 +295,13 @@ class QuizLibrary extends HTMLElement {
       state.previewQuizYaml = data.quiz_yaml || null;
       state.previewRawPayload = data.raw_payload || null;
       state.previewRawPreview = data.raw_preview || null;
+      state.previewQuizMeta = data.quiz_meta || null;
       if (state.quiz?.id === quizId) {
         state.quiz = data.quiz;
         state.quizYaml = data.quiz_yaml || null;
         state.quizRawPayload = data.raw_payload || null;
         state.quizRawPreview = data.raw_preview || null;
+        state.quizMeta = data.quiz_meta || null;
         document.dispatchEvent(new CustomEvent("quiz:updated"));
       }
       status.textContent = `Reprocessed: ${quizId}`;
@@ -212,6 +328,7 @@ class QuizLibrary extends HTMLElement {
         state.quizYaml = null;
         state.quizRawPayload = null;
         state.quizRawPreview = null;
+        state.quizMeta = null;
       }
 
       if (state.previewQuiz?.id === quizId) {
@@ -219,6 +336,7 @@ class QuizLibrary extends HTMLElement {
         state.previewQuizYaml = null;
         state.previewRawPayload = null;
         state.previewRawPreview = null;
+        state.previewQuizMeta = null;
       }
 
       status.textContent = `Deleted quiz: ${quizId}`;
@@ -276,6 +394,7 @@ class QuizLibrary extends HTMLElement {
             quizYaml: state.previewQuizYaml,
             rawPayload: state.previewRawPayload,
             rawPreview: state.previewRawPreview,
+            quizMeta: state.previewQuizMeta,
           })}
         </div>
       `
@@ -322,6 +441,7 @@ class QuizLibrary extends HTMLElement {
       state.previewQuizYaml = null;
       state.previewRawPayload = null;
       state.previewRawPreview = null;
+      state.previewQuizMeta = null;
       this.render();
     });
     this.querySelector("button[data-next]")?.addEventListener("click", () => {
@@ -338,6 +458,7 @@ class ModelPicker extends HTMLElement {
   }
 
   connectedCallback() {
+    loadModelSelection();
     this.load();
   }
 
@@ -345,6 +466,13 @@ class ModelPicker extends HTMLElement {
     const data = await fetchJSON("/api/models");
     state.models = data.models;
     state.groups = data.groups;
+    const knownIds = new Set(state.models.map((model) => model.id));
+    state.selectedModels = new Set(
+      [...state.selectedModels].filter((id) => knownIds.has(id))
+    );
+    if (state.selectedGroup && !state.groups[state.selectedGroup]) {
+      state.selectedGroup = "";
+    }
     this.render();
   }
 
@@ -352,65 +480,54 @@ class ModelPicker extends HTMLElement {
     const groupOptions = Object.keys(state.groups)
       .map((group) => `<option value="${group}">${group}</option>`)
       .join("");
-    const filteredModels = state.models.filter((model) => {
-      if (this.showAvailableOnly && !model.available) return false;
-      if (!this.filterText) return true;
-      const haystack = `${model.id} ${model.description || ""}`.toLowerCase();
-      return haystack.includes(this.filterText);
-    });
-    const modelList = filteredModels
-      .map(
-        (model) => `
-        <label class="list-item">
-          <input
-            type="checkbox"
-            value="${model.id}"
-            ${model.available ? "" : "disabled"}
-            ${state.selectedModels.has(model.id) ? "checked" : ""}
-          />
-          <div>
-            <strong>${model.id}</strong>
-            <div class="status">${model.description || "No description"}</div>
-            <span class="tag">${model.available ? "available" : "unavailable"}</span>
-          </div>
-        </label>
-      `
-      )
-      .join("");
+    const selectedIds = [...state.selectedModels];
     this.innerHTML = `
-      <div class="panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <h2>Model Console</h2>
-            <div class="panel-subtitle">Pick a group or cherry-pick models.</div>
+      <div class="model-picker-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>Model Console</h2>
+              <div class="panel-subtitle">Pick a group or cherry-pick models.</div>
+            </div>
+            <span class="badge">Step 3</span>
           </div>
-          <span class="badge">Step 3</span>
+          <div>
+            <label>Model group</label>
+            <select id="groupSelect">
+              <option value="">(none)</option>
+              ${groupOptions}
+            </select>
+          </div>
+          <div class="toolbar">
+            <input type="text" placeholder="Filter models..." value="${this.filterText}" />
+            <label class="tag">
+              <input type="checkbox" ${this.showAvailableOnly ? "checked" : ""} />
+              available only
+            </label>
+          </div>
+          <div class="actions">
+            <button class="secondary" data-action="select-visible">Select visible</button>
+            <button class="secondary" data-action="clear">Clear selection</button>
+            <button data-next>Next</button>
+          </div>
+          <div class="list scroll list-grid" data-model-list></div>
+          <div class="hint">Tip: filter to a short list, then select visible.</div>
         </div>
-        <div>
-          <label>Model group</label>
-          <select id="groupSelect">
-            <option value="">(none)</option>
-            ${groupOptions}
-          </select>
+        <div class="panel selection-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>Selected models</h2>
+              <div class="panel-subtitle">Review your picks before running.</div>
+            </div>
+            <span class="badge">${selectedIds.length}</span>
+          </div>
+          <div class="selection-count"></div>
+          <ul class="selection-list"></ul>
         </div>
-        <div class="toolbar">
-          <input type="text" placeholder="Filter models..." value="${this.filterText}" />
-          <label class="tag">
-            <input type="checkbox" ${this.showAvailableOnly ? "checked" : ""} />
-            available only
-          </label>
-        </div>
-        <div class="actions">
-          <button class="secondary" data-action="select-visible">Select visible</button>
-          <button class="secondary" data-action="clear">Clear selection</button>
-          <button data-next>Next</button>
-        </div>
-        <div class="list scroll list-grid">
-          ${modelList}
-        </div>
-        <div class="hint">Tip: filter to a short list, then select visible.</div>
       </div>
     `;
+    this.updateModelList();
+    this.updateSelectionSummary();
     const groupSelect = this.querySelector("#groupSelect");
     if (groupSelect) {
       groupSelect.value = state.selectedGroup || "";
@@ -421,16 +538,75 @@ class ModelPicker extends HTMLElement {
     }
     this.querySelector("input[type=text]")?.addEventListener("input", (event) => {
       this.filterText = event.target.value.toLowerCase();
-      this.render();
+      this.updateModelList();
     });
     const availableToggle = this.querySelector(".toolbar input[type=checkbox]");
     if (availableToggle) {
       availableToggle.addEventListener("change", (event) => {
         this.showAvailableOnly = event.target.checked;
-        this.render();
+        this.updateModelList();
       });
     }
-    this.querySelectorAll("input[type=checkbox][value]").forEach((input) => {
+    this.querySelectorAll("button[data-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.action === "clear") {
+          state.selectedModels.clear();
+        }
+        if (btn.dataset.action === "select-visible") {
+          this.getFilteredModels().forEach((model) => {
+            if (model.available) {
+              state.selectedModels.add(model.id);
+            }
+          });
+        }
+        notifyModelSelectionChanged();
+        this.updateSelectionSummary();
+        this.updateModelList();
+      });
+    });
+    this.querySelector("button[data-next]")?.addEventListener("click", () => {
+      setCurrentStep(4);
+    });
+  }
+
+  getFilteredModels() {
+    return state.models.filter((model) => {
+      if (this.showAvailableOnly && !model.available) return false;
+      if (!this.filterText) return true;
+      const haystack = `${model.name || ""} ${model.id} ${model.description || ""}`.toLowerCase();
+      return haystack.includes(this.filterText);
+    });
+  }
+
+  updateModelList() {
+    const list = this.querySelector("[data-model-list]");
+    if (!list) return;
+    const filteredModels = this.getFilteredModels();
+    list.innerHTML = filteredModels
+      .map((model) => {
+        const completionPrice = Number(model.pricing?.completion);
+        const priceLabel = Number.isFinite(completionPrice)
+          ? `$${(completionPrice * 1_000_000).toFixed(2)} / 1M`
+          : "n/a";
+        return `
+        <label class="list-item model-card">
+          <input
+            type="checkbox"
+            value="${model.id}"
+            ${model.available ? "" : "disabled"}
+            ${state.selectedModels.has(model.id) ? "checked" : ""}
+          />
+          <div class="model-meta">
+            <strong class="model-title">${model.name || model.id}</strong>
+            <div class="model-id">${model.id}</div>
+            <div class="model-desc">${model.description || "No description"}</div>
+            <span class="tag">${priceLabel}</span>
+          </div>
+        </label>
+      `;
+      })
+      .join("");
+    this.querySelectorAll("[data-model-list] input[type=checkbox][value]").forEach((input) => {
       input.addEventListener("change", () => {
         if (input.checked) {
           state.selectedModels.add(input.value);
@@ -438,28 +614,38 @@ class ModelPicker extends HTMLElement {
           state.selectedModels.delete(input.value);
         }
         notifyModelSelectionChanged();
-        this.render();
+        this.updateSelectionSummary();
       });
     });
-    this.querySelectorAll("button[data-action]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (btn.dataset.action === "clear") {
-          state.selectedModels.clear();
-        }
-        if (btn.dataset.action === "select-visible") {
-          filteredModels.forEach((model) => {
-            if (model.available) {
-              state.selectedModels.add(model.id);
-            }
-          });
-        }
-        notifyModelSelectionChanged();
-        this.render();
-      });
-    });
-    this.querySelector("button[data-next]")?.addEventListener("click", () => {
-      setCurrentStep(4);
-    });
+  }
+
+  updateSelectionSummary() {
+    const selectionCount = this.querySelector(".selection-count");
+    const selectionList = this.querySelector(".selection-list");
+    const selectionBadge = this.querySelector(".selection-panel .badge");
+    if (!selectionCount || !selectionList || !selectionBadge) return;
+
+    const modelLookup = new Map(state.models.map((model) => [model.id, model]));
+    const selectedIds = [...state.selectedModels];
+    selectionBadge.textContent = String(selectedIds.length);
+    selectionCount.textContent = selectedIds.length
+      ? `${selectedIds.length} selected`
+      : "None selected";
+    selectionList.innerHTML = selectedIds.length
+      ? selectedIds
+          .map((id) => {
+            const model = modelLookup.get(id);
+            const label = model?.name || id;
+            const showId = model?.name && model.name !== id;
+            return `
+              <li class="selection-item">
+                <div class="selection-name">${label}</div>
+                ${showId ? `<div class="selection-id">${id}</div>` : ""}
+              </li>
+            `;
+          })
+          .join("")
+      : `<li class="selection-empty">No models selected yet.</li>`;
   }
 }
 
@@ -493,32 +679,71 @@ class RunCreator extends HTMLElement {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      status.textContent = `Run created: ${data.run_id}`;
+      status.textContent = `Run created: ${data.run_id}. Opening dashboard...`;
       await refreshRuns();
+      setCurrentStep(0);
     } catch (err) {
       status.textContent = `Error: ${err.message}`;
     }
   }
 
   render() {
+    const compact = this.hasAttribute("data-compact");
     const quizTitle = state.quiz?.title || state.quiz?.id || "none";
+    const modelInfo = getEffectiveModelInfo();
+    const ruleTypes = state.quizMeta?.outcome_rule_types?.length
+      ? state.quizMeta.outcome_rule_types.join(", ")
+      : "none";
+    const capabilityRows = buildCapabilityRows(state.quizMeta, modelInfo.count);
+    const capabilities = state.quizMeta
+      ? `
+        <div class="status">Quiz type: ${getQuizTypeLabel(state.quiz, state.quizMeta)}</div>
+        <div class="status">Outcome rules: ${ruleTypes}</div>
+        <div class="status">Outcomes: ${state.quizMeta.has_outcomes ? state.quizMeta.outcome_count : 0}</div>
+        <div class="status">Choices: ${state.quizMeta.choice_count}</div>
+        <div class="status">Model selection: ${modelInfo.label}</div>
+        <div class="list">
+          ${capabilityRows
+            .map(
+              (row) => `
+              <div class="list-item">
+                <strong>${row.label}</strong>
+                <div class="status">${row.ok ? "Applies" : "Not applicable"}: ${row.reason}</div>
+              </div>
+            `
+            )
+            .join("")}
+        </div>
+      `
+      : `<div class="status">Quiz details will appear after a quiz is loaded.</div>`;
+    const actions = compact
+      ? `
+          <button id="runBtn">Run Quiz</button>
+          <button class="secondary" data-setup>Update setup</button>
+        `
+      : `
+          <button id="runBtn">Run Quiz</button>
+          <button class="secondary" data-back>Back</button>
+        `;
     this.innerHTML = `
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">
-            <h2>Run Launchpad</h2>
-            <div class="panel-subtitle">Choose a quiz, then launch.</div>
+            <h2>${compact ? "Run Launchpad" : "Run Launchpad"}</h2>
+            <div class="panel-subtitle">
+              ${compact ? "Launch a run with the current setup." : "Choose a quiz, then launch."}
+            </div>
           </div>
-          <span class="badge">Step 4</span>
+          ${compact ? "" : '<span class="badge">Step 4</span>'}
         </div>
         <div class="status">${state.quiz ? `Quiz loaded: ${quizTitle}` : "No quiz loaded yet."}</div>
         <div class="status">
           Models: ${state.selectedModels.size || "none selected"}
           ${state.selectedGroup ? `(group: ${state.selectedGroup})` : ""}
         </div>
+        ${capabilities}
         <div class="actions">
-          <button id="runBtn">Run Quiz</button>
-          <button class="secondary" data-back>Back</button>
+          ${actions}
         </div>
         <div class="status">Results will appear in the runs list.</div>
       </div>
@@ -526,6 +751,9 @@ class RunCreator extends HTMLElement {
     this.querySelector("#runBtn").addEventListener("click", () => this.createRun());
     this.querySelector("button[data-back]")?.addEventListener("click", () => {
       setCurrentStep(3);
+    });
+    this.querySelector("button[data-setup]")?.addEventListener("click", () => {
+      setCurrentStep(1);
     });
   }
 }
@@ -541,12 +769,13 @@ class RunList extends HTMLElement {
     const items = state.runs
       .map(
         (run) => `
-        <div class="list-item">
+        <div class="list-item ${state.selectedRun === run.run_id ? "active" : ""}" data-run="${run.run_id}">
           <strong>${run.run_id}</strong>
           <div class="status">Quiz: ${run.quiz_id}</div>
-          <div class="status">Status: ${run.status}</div>
+          <div class="status">
+            Status: <span class="status-pill status-${run.status}">${run.status}</span>
+          </div>
           <div class="status">${formatDate(run.created_at)}</div>
-          <button class="secondary" data-run="${run.run_id}">View</button>
         </div>
       `
       )
@@ -555,18 +784,22 @@ class RunList extends HTMLElement {
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">
-            <h2>Recent Runs</h2>
-            <div class="panel-subtitle">Review previous executions.</div>
+            <h2>Quiz runs</h2>
           </div>
-          <span class="badge">${state.runs.length}</span>
+          <div class="actions">
+            <button data-new-run>New run</button>
+          </div>
         </div>
         <div class="status">${state.runError || ""}</div>
         <div class="list scroll">${items || "<div class='status'>No runs yet.</div>"}</div>
       </div>
     `;
-    this.querySelectorAll("button[data-run]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const runId = btn.dataset.run;
+    this.querySelector("button[data-new-run]")?.addEventListener("click", () => {
+      setCurrentStep(1);
+    });
+    this.querySelectorAll(".list-item[data-run]").forEach((item) => {
+      item.addEventListener("click", async () => {
+        const runId = item.dataset.run;
         try {
           state.runError = null;
           await selectRun(runId);
@@ -582,8 +815,45 @@ class RunList extends HTMLElement {
 
 class RunResults extends HTMLElement {
   connectedCallback() {
-    document.addEventListener("run:selected", () => this.render());
+    this.pollId = null;
+    document.addEventListener("run:selected", () => this.startPolling());
     this.render();
+  }
+
+  disconnectedCallback() {
+    this.stopPolling();
+  }
+
+  stopPolling() {
+    if (this.pollId) {
+      clearInterval(this.pollId);
+      this.pollId = null;
+    }
+  }
+
+  async startPolling() {
+    this.stopPolling();
+    await this.refresh();
+    if (state.selectedRun) {
+      this.pollId = setInterval(() => this.refresh(), 4000);
+    }
+  }
+
+  async refresh() {
+    if (!state.selectedRun) {
+      this.render();
+      return;
+    }
+    try {
+      await loadRunDetails(state.selectedRun, true);
+    } catch (err) {
+      state.runError = `Failed to refresh run: ${err.message}`;
+    }
+    this.render();
+    const status = state.selectedRunData?.status || "";
+    if (status && ["completed", "failed"].includes(status)) {
+      this.stopPolling();
+    }
   }
 
   render() {
@@ -596,14 +866,29 @@ class RunResults extends HTMLElement {
       `;
       return;
     }
-    const assets = state.assets
-      .map((asset) => {
-        if (asset.url) {
-          return `<a href="${asset.url}" target="_blank">${asset.asset_type}</a>`;
-        }
-        return `<span>${asset.asset_type}</span>`;
+    const runData = state.selectedRunData;
+    const expectedAssets = buildExpectedAssetTypes(runData, state.selectedRunQuizMeta, state.assets);
+    const assetMap = new Map((state.assets || []).map((asset) => [asset.asset_type, asset]));
+    const status = runData?.status || "unknown";
+    const isActive = status && !["completed", "failed"].includes(status);
+    const assetRows = expectedAssets
+      .map((type) => {
+        const asset = assetMap.get(type);
+        const stateClass = asset ? "ready" : isActive ? "pending" : "missing";
+        const stateLabel = asset ? "Ready" : isActive ? "Generating" : "Missing";
+        const label = getAssetLabel(type);
+        const link = asset?.url
+          ? `<a href="${asset.url}" target="_blank" rel="noopener">${label}</a>`
+          : `<span>${label}</span>`;
+        return `
+          <div class="asset-item ${stateClass}">
+            <span class="asset-status ${stateClass}" aria-hidden="true"></span>
+            <div class="asset-label">${link}</div>
+            <div class="asset-state">${stateLabel}</div>
+          </div>
+        `;
       })
-      .join(", ");
+      .join("");
     const rows = state.runResults
       .slice(0, 20)
       .map(
@@ -617,6 +902,9 @@ class RunResults extends HTMLElement {
       `
       )
       .join("");
+    const logBody = state.runLogExists
+      ? state.runLog || "Log is still streaming..."
+      : "Run log not available yet.";
     this.innerHTML = `
       <div class="panel">
         <div class="panel-header">
@@ -626,7 +914,18 @@ class RunResults extends HTMLElement {
           </div>
         </div>
         <div class="status">${state.runError || ""}</div>
-        <div class="status">Assets: ${assets || "none"}</div>
+        <div class="status">
+          Status:
+          <span class="status-pill status-${status}">${status}</span>
+          ${runData?.quiz_id ? `· Quiz: ${runData.quiz_id}` : ""}
+        </div>
+        <div class="asset-list">
+          ${assetRows || "<div class='status'>No assets yet.</div>"}
+        </div>
+        <details class="run-log" ${isActive ? "open" : ""}>
+          <summary>Run log (live)</summary>
+          <pre class="run-log-body">${escapeHtml(logBody)}</pre>
+        </details>
         <table class="table">
           <thead>
             <tr>
@@ -652,6 +951,27 @@ customElements.define("run-creator", RunCreator);
 customElements.define("run-list", RunList);
 customElements.define("run-results", RunResults);
 
+class RunDashboard extends HTMLElement {
+  connectedCallback() {
+    this.render();
+  }
+
+  render() {
+    this.innerHTML = `
+      <div class="dashboard-grid">
+        <div class="dashboard-column">
+          <run-list></run-list>
+        </div>
+        <div class="dashboard-column">
+          <run-results></run-results>
+        </div>
+      </div>
+    `;
+  }
+}
+
+customElements.define("run-dashboard", RunDashboard);
+
 class StepperNav extends HTMLElement {
   connectedCallback() {
     this.render();
@@ -663,7 +983,7 @@ class StepperNav extends HTMLElement {
       { id: 1, label: "Convert quiz" },
       { id: 2, label: "Choose quiz" },
       { id: 3, label: "Pick models" },
-      { id: 4, label: "Run + review" },
+      { id: 4, label: "Run quiz" },
     ];
     const buttons = steps
       .map(
@@ -700,15 +1020,38 @@ async function refreshQuizzes() {
   document.dispatchEvent(new CustomEvent("quizzes:updated"));
 }
 
-async function selectRun(runId) {
-  const [runData, resultsData] = await Promise.all([
+async function loadRunDetails(runId, includeLog = false) {
+  const requests = [
     fetchJSON(`/api/runs/${runId}`),
     fetchJSON(`/api/runs/${runId}/results`),
-  ]);
+  ];
+  if (includeLog) {
+    requests.push(fetchJSON(`/api/runs/${runId}/log?tail=300`));
+  }
+  const [runData, resultsData, logData] = await Promise.all(requests);
   state.selectedRun = runId;
+  state.selectedRunData = runData.run || null;
   state.assets = runData.assets || [];
   state.runResults = resultsData.results || [];
   state.runError = null;
+  if (logData) {
+    state.runLog = logData.log || "";
+    state.runLogExists = Boolean(logData.exists);
+  }
+  if (!state.selectedRunQuizMeta || state.selectedRunQuizId !== runData.run.quiz_id) {
+    try {
+      const quizData = await fetchJSON(`/api/quizzes/${runData.run.quiz_id}`);
+      state.selectedRunQuizMeta = quizData.quiz_meta || null;
+      state.selectedRunQuizId = runData.run.quiz_id;
+    } catch (err) {
+      state.selectedRunQuizMeta = null;
+      state.selectedRunQuizId = null;
+    }
+  }
+}
+
+async function selectRun(runId) {
+  await loadRunDetails(runId, true);
   document.dispatchEvent(new CustomEvent("run:selected"));
 }
 
@@ -726,7 +1069,14 @@ function getQuizType(quiz) {
   return "Mostly letter";
 }
 
-function getScoringSummary(quiz) {
+function getQuizTypeLabel(quiz, quizMeta) {
+  if (quizMeta?.quiz_type) {
+    return quizMeta.quiz_type;
+  }
+  return getQuizType(quiz);
+}
+
+function getScoringSummary(quiz, quizMeta) {
   const outcomes = quiz.outcomes || [];
   const mostly = outcomes
     .filter((o) => o.condition && o.condition.mostly)
@@ -752,6 +1102,124 @@ function getScoringSummary(quiz) {
   return "No explicit outcomes; defaulting to mostly-letter.";
 }
 
+function getEffectiveModelInfo() {
+  if (state.selectedModels.size) {
+    return {
+      count: state.selectedModels.size,
+      label: `${state.selectedModels.size} selected`,
+    };
+  }
+  if (state.selectedGroup && state.groups[state.selectedGroup]) {
+    const groupIds = state.groups[state.selectedGroup] || [];
+    return {
+      count: groupIds.length,
+      label: `${state.selectedGroup} (${groupIds.length})`,
+    };
+  }
+  const available = state.models.filter((model) => model.available);
+  return {
+    count: available.length,
+    label: `all available (${available.length})`,
+  };
+}
+
+function buildCapabilityRows(quizMeta, modelCount) {
+  if (!quizMeta) return [];
+  const hasOutcomes = quizMeta.has_outcomes;
+  const outcomeCount = quizMeta.outcome_count || 0;
+  const choiceCount = quizMeta.choice_count || 0;
+  const isSingle = modelCount === 1;
+  const isMulti = modelCount > 1;
+
+  const rows = [];
+  rows.push({
+    label: "Outcome CSV",
+    ok: hasOutcomes,
+    reason: hasOutcomes
+      ? "Created because outcomes are defined and report generation is enabled."
+      : "Not created because the quiz has no outcomes.",
+  });
+  rows.push({
+    label: "Choices bar chart (single model)",
+    ok: isSingle,
+    reason: isSingle
+      ? "Generated for single-model runs."
+      : "Only generated for single-model runs.",
+  });
+  rows.push({
+    label: "Choice comparison bar chart",
+    ok: isMulti && !hasOutcomes,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : hasOutcomes
+        ? "Outcome-based quiz uses outcome charts instead."
+        : "Generated for multi-model, non-outcome quizzes.",
+  });
+  rows.push({
+    label: "Choice radar chart",
+    ok: isMulti && !hasOutcomes && choiceCount >= 3,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : hasOutcomes
+        ? "Outcome-based quiz uses outcome charts instead."
+        : choiceCount < 3
+          ? "Requires at least 3 choices."
+          : "Generated for multi-model, non-outcome quizzes.",
+  });
+  rows.push({
+    label: "Choice heatmap",
+    ok: isMulti && !hasOutcomes && choiceCount > 1,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : hasOutcomes
+        ? "Outcome-based quiz uses outcome charts instead."
+        : choiceCount <= 1
+          ? "Requires more than 1 choice."
+          : "Generated for multi-model, non-outcome quizzes.",
+  });
+  rows.push({
+    label: "Outcomes bar chart",
+    ok: isMulti && hasOutcomes,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : hasOutcomes
+        ? "Generated for multi-model outcome quizzes."
+        : "Requires outcomes in the quiz YAML.",
+  });
+  rows.push({
+    label: "Model to outcome matrix",
+    ok: isMulti && hasOutcomes,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : hasOutcomes
+        ? "Generated for multi-model outcome quizzes."
+        : "Requires outcomes in the quiz YAML.",
+  });
+  rows.push({
+    label: "Outcome radar chart",
+    ok: isMulti && hasOutcomes && outcomeCount >= 3,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : !hasOutcomes
+        ? "Requires outcomes in the quiz YAML."
+        : outcomeCount < 3
+          ? "Requires at least 3 outcomes."
+          : "Generated for multi-model outcome quizzes.",
+  });
+  rows.push({
+    label: "Outcome heatmap",
+    ok: isMulti && hasOutcomes && outcomeCount > 1,
+    reason: !isMulti
+      ? "Requires multiple models."
+      : !hasOutcomes
+        ? "Requires outcomes in the quiz YAML."
+        : outcomeCount <= 1
+          ? "Requires more than 1 outcome."
+          : "Generated for multi-model outcome quizzes.",
+  });
+  return rows;
+}
+
 function setCurrentStep(step) {
   state.currentStep = step;
   updateStepVisibility();
@@ -763,9 +1231,16 @@ function updateStepVisibility() {
     const panelStep = Number(panel.dataset.step);
     panel.classList.toggle("active", panelStep === state.currentStep);
   });
+  const stepper = document.querySelector("stepper-nav");
+  if (stepper) {
+    stepper.style.display = state.currentStep === 0 ? "none" : "";
+  }
 }
 
 updateStepVisibility();
+document.querySelectorAll("[data-nav='dashboard']").forEach((btn) => {
+  btn.addEventListener("click", () => setCurrentStep(0));
+});
 
 const outcomeConditionLabels = {
   mostly: "Mostly",
@@ -838,7 +1313,10 @@ function renderRawInput(rawPreview) {
   return "<div class=\"status\">Raw input not available.</div>";
 }
 
-function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null, rawPreview = null } = {}) {
+function renderQuizPreview(
+  quiz,
+  { quizYaml = null, rawPayload = null, rawPreview = null, quizMeta = null } = {}
+) {
   const questions = quiz.questions || [];
   const items = questions
     .map((question, index) => {
@@ -892,8 +1370,8 @@ function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null, rawPrevie
 
   const metaRows = [
     ["Quiz ID", quiz.id || ""],
-    ["Type", getQuizType(quiz)],
-    ["Scoring", getScoringSummary(quiz)],
+    ["Type", getQuizTypeLabel(quiz, quizMeta)],
+    ["Scoring", getScoringSummary(quiz, quizMeta)],
     ["Notes", quiz.notes || "—"],
     ["Raw backup", rawPayload ? `${rawPayload.type || "stored"}` : "Not stored"],
   ]

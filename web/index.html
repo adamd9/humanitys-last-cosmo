@@ -12,25 +12,41 @@
   </head>
   <body>
     <main class="app-shell">
-      <header class="hero">
-        <div>
-          <p class="kicker">LLM Pop Quiz Bench</p>
-          <h1>Run personality quizzes across models, locally.</h1>
-          <p class="subhead">
-            Upload a quiz image or paste text, convert to YAML, pick models,
-            and generate charts and reports.
-          </p>
-        </div>
-        <div class="hero-card">
-          <div class="chip">Local-first</div>
-          <div class="chip">No build step</div>
-          <div class="chip">Web Components</div>
-        </div>
+      <header class="app-header">
+        <button class="app-brand" type="button" data-nav="dashboard">
+          <img class="app-logo" src="/static/logo.png" alt="LLM Pop Quiz Bench logo" />
+          <div>
+            <p class="kicker">LLM Pop Quiz Bench</p>
+            <div class="app-title">Local quiz runner</div>
+          </div>
+        </button>
+        <nav class="app-nav">
+          <button class="secondary" data-nav="dashboard">Dashboard</button>
+        </nav>
       </header>
 
       <stepper-nav></stepper-nav>
 
       <section class="workspace">
+        <div class="stack step-panel" data-step="0">
+          <header class="hero">
+            <div>
+              <p class="kicker">The Last Quiz Bench</p>
+              <h1>Think your model has personality? Let's find out!</h1>
+              <p class="subhead">
+                A very non-scientific test of model personality - upload your quiz, pick your models, and see how they respond.
+              </p>
+            </div>
+            <div class="hero-card">
+              <img
+                class="hero-logo"
+                src="/static/logo.png"
+                alt="LLM Pop Quiz Bench logo"
+              />
+            </div>
+          </header>
+          <run-dashboard></run-dashboard>
+        </div>
         <div class="stack step-panel" data-step="1">
           <quiz-uploader></quiz-uploader>
         </div>
@@ -42,8 +58,6 @@
         </div>
         <div class="stack step-panel" data-step="4">
           <run-creator></run-creator>
-          <run-list></run-list>
-          <run-results></run-results>
         </div>
       </section>
     </main>

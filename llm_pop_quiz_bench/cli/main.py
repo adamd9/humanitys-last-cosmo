@@ -10,12 +10,9 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-from ..adapters.anthropic_adapter import AnthropicAdapter
-from ..adapters.google_adapter import GoogleAdapter
-from ..adapters.mock_adapter import MockAdapter
-from ..adapters.openai_adapter import OpenAIAdapter
 from ..core import reporter
 from ..core.model_config import model_config_loader
+from ..core.openrouter import fetch_user_models, normalize_models, with_prefix
 from ..core.quiz_converter import text_to_yaml
 from ..core.runner import run_sync
 from ..core.runtime_data import get_runtime_paths
@@ -33,8 +30,8 @@ def benchmark(
     
     Args:
         quiz: Path to the quiz YAML file
-        models: Comma-separated list of model IDs (e.g., "openai:gpt-4o,anthropic:claude-3-5-sonnet")
-        group: Model group name from config (e.g., "default", "openai_comparison", "premium")
+        models: Comma-separated list of model IDs (e.g., "openrouter:openai/gpt-4o")
+        group: Model group name from config (e.g., "default", "openai_comparison")
     """
     
     run_id = uuid.uuid4().hex
@@ -42,58 +39,39 @@ def benchmark(
 
     runtime_paths = get_runtime_paths()
     
+    if not models and not group:
+        typer.echo("❌ Select at least one model or group.")
+        raise typer.Exit(1)
+
+    if not use_mocks and not os.environ.get("OPENROUTER_API_KEY"):
+        typer.echo("❌ OPENROUTER_API_KEY is required.")
+        raise typer.Exit(1)
+
     # Determine which models to use
     if models:
-        # Explicit model list provided
-        model_ids = [m.strip() for m in models.split(",")]
-        selected_models = []
-        for model_id in model_ids:
-            model_config = model_config_loader.get_model(model_id)
-            if model_config:
-                selected_models.append(model_config)
-            else:
-                typer.echo(f"⚠️  Unknown model: {model_id}")
-    elif group:
-        # Model group provided
-        try:
-            selected_models = model_config_loader.get_available_models_by_group(group, use_mocks)
-            if not selected_models:
-                typer.echo(f"❌ No available models in group '{group}'. Check your API keys.")
-                raise typer.Exit(1)
-        except ValueError as e:
-            typer.echo(f"❌ {e}")
-            available_groups = model_config_loader.list_available_groups(use_mocks)
-            typer.echo(f"Available groups: {', '.join(available_groups)}")
-            raise typer.Exit(1)
+        model_ids = [with_prefix(m.strip()) for m in models.split(",")]
     else:
-        # Default: use all available models from the "default" group
-        selected_models = model_config_loader.get_available_models_by_group("default", use_mocks)
-        if not selected_models:
-            # Fallback to any available models
-            selected_models = model_config_loader.get_available_models(use_mocks)
-    
-    if not selected_models:
-        typer.echo("❌ No available models found. Check your API keys.")
-        available_groups = model_config_loader.list_available_groups(use_mocks)
-        if available_groups:
-            typer.echo(f"Available model groups: {', '.join(available_groups)}")
+        try:
+            model_ids = model_config_loader.model_groups[group]
+        except KeyError:
+            typer.echo(f"❌ Unknown model group: {group}")
+            available_groups = ", ".join(model_config_loader.model_groups.keys())
+            if available_groups:
+                typer.echo(f"Available model groups: {available_groups}")
+            raise typer.Exit(1)
+
+    if not model_ids:
+        typer.echo("❌ No models selected.")
         raise typer.Exit(1)
-    
+
     # Display selected models
-    model_names = [model.id for model in selected_models]
-    typer.echo(f"🤖 Running benchmark with models: {', '.join(model_names)}")
+    typer.echo(f"🤖 Running benchmark with models: {', '.join(model_ids)}")
     
     # Create adapters
-    adapters = []
-    for model_config in selected_models:
-        if model_config.is_available(use_mocks):
-            adapter = model_config.create_adapter(use_mocks)
-            adapters.append(adapter)
-        else:
-            typer.echo(f"⚠️  Skipping {model_config.id} - {model_config.api_key_env} not found in environment")
+    adapters = model_config_loader.create_adapters(model_ids, use_mocks)
     
     if not adapters:
-        typer.echo("❌ No valid adapters created. Check your API keys.")
+        typer.echo("❌ No valid adapters created. Check OPENROUTER_API_KEY or mock mode.")
         raise typer.Exit(1)
     
     typer.echo(f"✅ Running quiz with {len(adapters)} adapter(s)")
@@ -115,105 +93,75 @@ def list_models() -> None:
     """List all available models and model groups."""
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
     
-    typer.echo("🤖 Available Models:")
+    typer.echo("🤖 Available Models (OpenRouter):")
     typer.echo("")
-    
-    # Group models by provider
-    providers = {}
-    for model_config in model_config_loader.models.values():
-        if model_config.provider not in providers:
-            providers[model_config.provider] = []
-        providers[model_config.provider].append(model_config)
-    
-    for provider, models in providers.items():
-        typer.echo(f"💻 {provider.upper()}:")
-        for model in models:
-            status = "✅" if model.is_available(use_mocks) else "❌"
-            typer.echo(f"  {status} {model.id} - {model.description}")
-        typer.echo("")
+
+    if use_mocks:
+        models = [
+            {
+                "id": override.id,
+                "description": override.description,
+            }
+            for override in model_config_loader.models.values()
+        ]
+    else:
+        try:
+            raw_models = fetch_user_models()
+        except Exception:
+            raw_models = []
+        models = normalize_models(raw_models)
+    overrides = model_config_loader.models
+    if not models:
+        typer.echo("  (No models returned - check OPENROUTER_API_KEY)")
+    for model in models:
+        override = overrides.get(model["id"])
+        description = model.get("description", "")
+        if override and override.description:
+            description = override.description
+        typer.echo(f"  ✅ {model['id']} - {description}")
     
     typer.echo("📁 Model Groups:")
     typer.echo("")
     
     for group_name, model_ids in model_config_loader.model_groups.items():
-        available_count = len(model_config_loader.get_available_models_by_group(group_name, use_mocks))
         total_count = len(model_ids)
-        status = "✅" if available_count > 0 else "❌"
-        typer.echo(f"  {status} {group_name} ({available_count}/{total_count} available)")
+        typer.echo(f"  • {group_name} ({total_count} models)")
         for model_id in model_ids:
-            model_config = model_config_loader.get_model(model_id)
-            if model_config:
-                model_status = "✅" if model_config.is_available(use_mocks) else "❌"
-                typer.echo(f"    {model_status} {model_id}")
+            typer.echo(f"    {model_id}")
     
     typer.echo("")
     typer.echo("📝 Usage Examples:")
-    typer.echo("  # Use default models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml")
+    typer.echo("  # Use specific models")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openrouter:openai/gpt-4o")
     typer.echo("")
     typer.echo("  # Use specific model group")
     typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --group openai_comparison")
     typer.echo("")
     typer.echo("  # Use specific models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openai:gpt-4o,anthropic:claude-3-5-sonnet")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openrouter:openai/gpt-4o,openrouter:anthropic/claude-3.5-sonnet")
 
 
 @app.command("quiz:run")
 def quiz_run(quiz: Path, models: str = None) -> None:
-    """Run a quiz with all available models (default) or specified models for testing."""
+    """Run a quiz with specified models for testing."""
 
     run_id = uuid.uuid4().hex
-    adapters = []
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
     runtime_paths = get_runtime_paths()
     
-    # If no models specified, use all available models
     if models is None:
-        available_models = []
-        if use_mocks:
-            available_models = ["openai:gpt-4o", "anthropic:claude-3-5-sonnet", "google:gemini-1.5-flash"]
-        else:
-            if os.environ.get("OPENAI_API_KEY"):
-                available_models.append("openai:gpt-4o")
-            if os.environ.get("ANTHROPIC_API_KEY"):
-                available_models.append("anthropic:claude-3-5-sonnet")
-            if os.environ.get("GOOGLE_API_KEY"):
-                available_models.append("google:gemini-1.5-flash")
-        
-        if not available_models:
-            typer.echo("❌ No API keys found. Please set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GOOGLE_API_KEY")
-            raise typer.Exit(1)
-        
-        models = ",".join(available_models)
-        typer.echo(f"🤖 Using all available models: {models}")
-    
-    for m in models.split(","):
-        provider, model = m.split(":", 1)
-        if use_mocks:
-            adapters.append(MockAdapter(model=f"{provider}:{model}"))
-        elif provider == "openai":
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if api_key:
-                adapters.append(OpenAIAdapter(model=model, api_key_env="OPENAI_API_KEY"))
-            else:
-                typer.echo(f"⚠️  Skipping {provider}:{model} - OPENAI_API_KEY not found in environment", err=True)
-        elif provider == "anthropic":
-            api_key = os.environ.get("ANTHROPIC_API_KEY")
-            if api_key:
-                adapters.append(AnthropicAdapter(model=model, api_key_env="ANTHROPIC_API_KEY"))
-            else:
-                typer.echo(f"⚠️  Skipping {provider}:{model} - ANTHROPIC_API_KEY not found in environment", err=True)
-        elif provider == "google":
-            api_key = os.environ.get("GOOGLE_API_KEY")
-            if api_key:
-                adapters.append(GoogleAdapter(model=model, api_key_env="GOOGLE_API_KEY"))
-            else:
-                typer.echo(f"⚠️  Skipping {provider}:{model} - GOOGLE_API_KEY not found in environment", err=True)
-        else:
-            typer.echo(f"⚠️  Skipping {provider}:{model} - Unknown provider '{provider}'", err=True)
+        typer.echo("❌ Select at least one model via --models.")
+        raise typer.Exit(1)
+
+    if not use_mocks and not os.environ.get("OPENROUTER_API_KEY"):
+        typer.echo("❌ OPENROUTER_API_KEY is required.")
+        raise typer.Exit(1)
+
+    model_ids = [with_prefix(m.strip()) for m in models.split(",")]
+    adapters = model_config_loader.create_adapters(model_ids, use_mocks)
 
     if not adapters:
-        typer.echo("❌ No valid adapters available. Please check your API keys or use mock mode with LLM_POP_QUIZ_ENV=mock", err=True)
+        typer.echo("❌ No valid adapters available. Check OPENROUTER_API_KEY or use mock mode.", err=True)
         raise typer.Exit(1)
 
     typer.echo(f"✅ Running quiz with {len(adapters)} adapter(s)")
@@ -228,7 +176,7 @@ def quiz_run(quiz: Path, models: str = None) -> None:
 
 @app.command("quiz:demo")
 def quiz_demo() -> None:
-    quiz_run(Path("quizzes/sample_ninja_turtles.yaml"))
+    quiz_run(Path("quizzes/sample_ninja_turtles.yaml"), models="openrouter:openai/gpt-4o")
 
 
 @app.command("quiz:convert")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -42,6 +43,15 @@ def _get_model_params(adapter) -> dict:
         return {"temperature": 0.2}
 
 
+def _append_log(path: Path, message: str) -> None:
+    timestamp = datetime.now(timezone.utc).isoformat()
+    line = f"[{timestamp}] {message}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"{line}\n")
+    print(line)
+
+
 async def run_quiz(
     quiz_path: Path, adapters: list[ChatAdapter], run_id: str, runtime_dir: Path | None = None
 ) -> None:
@@ -55,6 +65,7 @@ async def run_quiz(
 
     runtime_paths = get_runtime_paths() if runtime_dir is None else build_runtime_paths(runtime_dir)
 
+    log_path = runtime_paths.logs_dir / f"{run_id}.log"
     conn = connect(runtime_paths.db_path)
     upsert_quiz(conn, quiz, quiz_yaml)
     insert_run(
@@ -64,10 +75,11 @@ async def run_quiz(
         status="running",
         models=[adapter.id for adapter in adapters],
     )
+    _append_log(log_path, f"Run {run_id} started for quiz {quiz['id']}.")
     
     for adapter in adapters:
         try:
-            print(f"🔄 Testing model: {adapter.id}")
+            _append_log(log_path, f"Testing model: {adapter.id}")
             model_records: list[dict] = []
             
             for idx, q in enumerate(questions, start=1):
@@ -106,7 +118,10 @@ async def run_quiz(
                 except Exception as e:
                     # Extract the actual error from RetryError or other wrappers
                     actual_error = _extract_actual_error(e)
-                    print(f"⚠️  Question {idx} failed for {adapter.id}: {actual_error[:150]}")
+                    _append_log(
+                        log_path,
+                        f"Question {idx} failed for {adapter.id}: {actual_error[:150]}",
+                    )
                     # Record a failed attempt for this question
                     rec = QAResult(
                         question_id=q["id"],
@@ -122,38 +137,39 @@ async def run_quiz(
                     continue
             
             # If we got here, the adapter worked (even if some questions failed)
-            print(f"✅ Model {adapter.id} completed successfully")
+            _append_log(log_path, f"Model {adapter.id} completed successfully")
             successful_adapters.append(adapter)
             
         except Exception as e:
             actual_error = _extract_actual_error(e)
-            print(f"❌ Model {adapter.id} failed completely: {actual_error}")
+            _append_log(log_path, f"Model {adapter.id} failed completely: {actual_error}")
             failed_adapters.append((adapter.id, actual_error))
             continue
         insert_results(conn, run_id, quiz["id"], adapter.id, model_records)
 
     # Print summary of model results
-    print("\n" + "="*60)
-    print("📊 BENCHMARK SUMMARY")
-    print("="*60)
+    _append_log(log_path, "=" * 60)
+    _append_log(log_path, "BENCHMARK SUMMARY")
+    _append_log(log_path, "=" * 60)
     
     if successful_adapters:
-        print(f"✅ Successful models ({len(successful_adapters)}):")
+        _append_log(log_path, f"Successful models ({len(successful_adapters)}):")
         for adapter in successful_adapters:
-            print(f"   • {adapter.id}")
+            _append_log(log_path, f" - {adapter.id}")
     
     if failed_adapters:
-        print(f"\n❌ Failed models ({len(failed_adapters)}):")
+        _append_log(log_path, f"Failed models ({len(failed_adapters)}):")
         for model_id, error in failed_adapters:
-            print(f"   • {model_id}: {error[:80]}...")
+            _append_log(log_path, f" - {model_id}: {error[:80]}...")
     
     if not successful_adapters:
-        print("\n⚠️  WARNING: No models completed successfully!")
-        print("   Check your API keys and model access permissions.")
+        _append_log(log_path, "WARNING: No models completed successfully!")
+        _append_log(log_path, "Check your API keys and model access permissions.")
     else:
-        print(f"\n🎯 Results saved for {len(successful_adapters)} working model(s)")
+        _append_log(log_path, f"Results saved for {len(successful_adapters)} working model(s)")
     
-    print("="*60 + "\n")
+    _append_log(log_path, "=" * 60)
+    _append_log(log_path, "Run complete. Waiting on reports if enabled.")
 
     update_run_status(conn, run_id, "completed")
     conn.close()

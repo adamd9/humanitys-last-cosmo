@@ -14,8 +14,10 @@ from pydantic import BaseModel
 
 from ..core import reporter
 from ..core.model_config import model_config_loader
+from ..core.openrouter import fetch_user_models, normalize_models, with_prefix
+from ..core.quiz_meta import build_quiz_meta
 from ..core.quiz_converter import convert_to_yaml
-from ..core.runtime_data import get_runtime_paths
+from ..core.runtime_data import build_runtime_paths, get_runtime_paths
 from ..core.runner import run_sync
 from ..core.sqlite_store import (
     connect,
@@ -27,6 +29,7 @@ from ..core.sqlite_store import (
     fetch_results,
     fetch_run,
     fetch_runs,
+    update_run_status,
     upsert_quiz,
 )
 
@@ -128,7 +131,20 @@ def _run_and_report(
 ) -> None:
     run_sync(quiz_path, adapters, run_id, runtime_root)
     if generate_report:
-        reporter.generate_markdown_report(run_id, runtime_root)
+        runtime_paths = build_runtime_paths(runtime_root)
+        conn = connect(runtime_paths.db_path)
+        update_run_status(conn, run_id, "reporting")
+        conn.close()
+        try:
+            reporter.generate_markdown_report(run_id, runtime_root)
+        except Exception:
+            conn = connect(runtime_paths.db_path)
+            update_run_status(conn, run_id, "failed")
+            conn.close()
+            raise
+        conn = connect(runtime_paths.db_path)
+        update_run_status(conn, run_id, "completed")
+        conn.close()
 
 
 @app.get("/api/health")
@@ -147,17 +163,42 @@ def index() -> FileResponse:
 @app.get("/api/models")
 def list_models() -> dict:
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
+    overrides = model_config_loader.models
     models = []
-    for model in model_config_loader.models.values():
-        models.append(
-            {
-                "id": model.id,
-                "provider": model.provider,
-                "model": model.model,
-                "description": model.description,
-                "available": model.is_available(use_mocks),
-            }
-        )
+    if use_mocks:
+        for override in overrides.values():
+            models.append(
+                {
+                    "id": override.id,
+                    "model": override.model,
+                    "name": override.model,
+                    "description": override.description,
+                    "context_length": None,
+                    "pricing": None,
+                    "available": True,
+                }
+            )
+    else:
+        try:
+            raw_models = fetch_user_models()
+        except Exception:
+            raw_models = []
+        for entry in normalize_models(raw_models):
+            override = overrides.get(entry["id"])
+            description = entry["description"]
+            if override and override.description:
+                description = override.description
+            models.append(
+                {
+                    "id": entry["id"],
+                    "model": entry["model"],
+                    "name": entry["name"],
+                    "description": description,
+                    "context_length": entry.get("context_length"),
+                    "pricing": entry.get("pricing"),
+                    "available": bool(os.environ.get("OPENROUTER_API_KEY")),
+                }
+            )
     return {"models": models, "groups": model_config_loader.model_groups}
 
 
@@ -182,6 +223,7 @@ def get_quiz(quiz_id: str) -> dict:
     return {
         "quiz": record["quiz"],
         "quiz_yaml": record["quiz_yaml"],
+        "quiz_meta": build_quiz_meta(record["quiz"]),
         "raw_payload": record.get("raw_payload"),
         "raw_preview": raw_preview,
     }
@@ -260,6 +302,7 @@ async def parse_quiz(
     return {
         "quiz": quiz_def,
         "quiz_yaml": yaml_text,
+        "quiz_meta": build_quiz_meta(quiz_def),
         "raw_payload": raw_payload,
         "raw_preview": _build_raw_preview(raw_payload),
     }
@@ -320,6 +363,7 @@ async def reprocess_quiz(
     return {
         "quiz": quiz_def,
         "quiz_yaml": yaml_text,
+        "quiz_meta": build_quiz_meta(quiz_def),
         "raw_payload": raw_payload,
         "raw_preview": _build_raw_preview(raw_payload),
     }
@@ -339,19 +383,21 @@ def create_run(req: RunRequest, background_tasks: BackgroundTasks) -> dict:
     quiz_path = runtime_paths.quizzes_dir / f"{req.quiz_id}.yaml"
     quiz_path.write_text(quiz_yaml, encoding="utf-8")
 
+    if not req.models and not req.group:
+        raise HTTPException(status_code=400, detail="Select at least one model or group")
+
+    if not use_mocks and not os.environ.get("OPENROUTER_API_KEY"):
+        raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is required")
+
     if req.models:
-        adapters = model_config_loader.create_adapters(req.models, use_mocks)
+        model_ids = [with_prefix(model_id) for model_id in req.models]
+        adapters = model_config_loader.create_adapters(model_ids, use_mocks)
     elif req.group:
         try:
-            group_models = model_config_loader.get_available_models_by_group(req.group, use_mocks)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        adapters = [m.create_adapter(use_mocks) for m in group_models]
-    else:
-        adapters = model_config_loader.create_adapters(
-            [m.id for m in model_config_loader.get_available_models(use_mocks)],
-            use_mocks,
-        )
+            model_ids = model_config_loader.model_groups[req.group]
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail=f"Unknown model group: {req.group}") from exc
+        adapters = model_config_loader.create_adapters(model_ids, use_mocks)
 
     if not adapters:
         raise HTTPException(status_code=400, detail="No available models to run")
@@ -416,3 +462,17 @@ def get_run_results(run_id: str) -> dict:
     rows = fetch_results(conn, run_id)
     conn.close()
     return {"results": rows}
+
+
+@app.get("/api/runs/{run_id}/log")
+def get_run_log(run_id: str, tail: int = 300) -> dict:
+    runtime_paths = get_runtime_paths()
+    log_path = runtime_paths.logs_dir / f"{run_id}.log"
+    if not log_path.exists():
+        return {"log": "", "exists": False}
+    content = log_path.read_text(encoding="utf-8", errors="replace")
+    if tail > 0:
+        lines = content.splitlines()
+        if len(lines) > tail:
+            content = "\n".join(lines[-tail:])
+    return {"log": content, "exists": True}
