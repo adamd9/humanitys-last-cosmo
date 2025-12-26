@@ -1,8 +1,12 @@
 const state = {
   quiz: null,
   quizYaml: null,
+  quizzes: [],
+  previewQuiz: null,
   models: [],
   groups: {},
+  selectedModels: new Set(),
+  selectedGroup: "",
   runs: [],
   selectedRun: null,
   runResults: [],
@@ -50,8 +54,9 @@ class QuizUploader extends HTMLElement {
       const data = await fetchJSON("/api/quizzes/parse", { method: "POST", body, headers });
       state.quiz = data.quiz;
       state.quizYaml = data.quiz_yaml;
-      status.textContent = `Parsed quiz: ${state.quiz.id}`;
+      status.textContent = `Parsed quiz: ${state.quiz.id} (saved to library)`;
       this.render();
+      await refreshQuizzes();
       document.dispatchEvent(new CustomEvent("quiz:updated"));
     } catch (err) {
       status.textContent = `Error: ${err.message}`;
@@ -59,7 +64,9 @@ class QuizUploader extends HTMLElement {
   }
 
   render() {
-    const previewText = state.quizYaml || "";
+    const previewText =
+      state.quizYaml ||
+      (state.quiz ? "YAML preview is available after parsing a new quiz." : "");
     const quizMeta = state.quiz
       ? `
         <div class="status">Detected quiz type: ${getQuizType(state.quiz)}</div>
@@ -68,7 +75,13 @@ class QuizUploader extends HTMLElement {
       : "";
     this.innerHTML = `
       <div class="panel">
-        <h2>1) Convert Quiz</h2>
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Quiz Studio</h2>
+            <div class="panel-subtitle">Convert a new quiz into YAML.</div>
+          </div>
+          <span class="badge">Step 1</span>
+        </div>
         <div>
           <label>Paste quiz text</label>
           <textarea placeholder="Paste the quiz text here..."></textarea>
@@ -88,7 +101,134 @@ class QuizUploader extends HTMLElement {
   }
 }
 
+class QuizLibrary extends HTMLElement {
+  constructor() {
+    super();
+    this.filterText = "";
+  }
+
+  connectedCallback() {
+    this.render();
+    refreshQuizzes();
+    document.addEventListener("quizzes:updated", () => this.render());
+    document.addEventListener("quiz:updated", () => this.render());
+  }
+
+  applyFilter(value) {
+    this.filterText = value.toLowerCase();
+    this.render();
+  }
+
+  async selectQuiz(quizId) {
+    const status = this.querySelector(".status");
+    status.textContent = "Loading quiz...";
+    try {
+      const data = await fetchJSON(`/api/quizzes/${quizId}`);
+      state.quiz = data.quiz;
+      state.quizYaml = null;
+      status.textContent = `Loaded quiz: ${quizId}`;
+      document.dispatchEvent(new CustomEvent("quiz:updated"));
+    } catch (err) {
+      status.textContent = `Error: ${err.message}`;
+    }
+  }
+
+  async previewQuiz(quizId) {
+    const status = this.querySelector(".status");
+    status.textContent = "Loading preview...";
+    try {
+      const data = await fetchJSON(`/api/quizzes/${quizId}`);
+      state.previewQuiz = data.quiz;
+      status.textContent = `Previewing: ${quizId}`;
+      this.render();
+    } catch (err) {
+      status.textContent = `Error: ${err.message}`;
+    }
+  }
+
+  render() {
+    const filter = this.filterText;
+    const quizzes = state.quizzes.filter((quiz) => {
+      if (!filter) return true;
+      const haystack = `${quiz.quiz_id} ${quiz.title || ""}`.toLowerCase();
+      return haystack.includes(filter);
+    });
+    const items = quizzes
+      .map((quiz) => {
+        const isActive = state.quiz?.id === quiz.quiz_id;
+        return `
+        <div class="list-item">
+          <div>
+            <strong>${quiz.title || quiz.quiz_id}</strong>
+            <div class="status">ID: ${quiz.quiz_id}</div>
+            <div class="status">Source: ${quiz.source?.source || "unknown"}</div>
+          </div>
+          <div class="actions">
+            <button class="secondary" data-preview="${quiz.quiz_id}">View</button>
+            <button class="secondary" data-quiz="${quiz.quiz_id}">
+              ${isActive ? "Selected" : "Use this quiz"}
+            </button>
+          </div>
+        </div>
+      `;
+      })
+      .join("");
+    const preview = state.previewQuiz
+      ? `
+        <div class="quiz-preview">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h3>${state.previewQuiz.title || state.previewQuiz.id}</h3>
+              <div class="panel-subtitle">Quiz preview</div>
+            </div>
+            <button class="secondary" data-clear-preview>Clear</button>
+          </div>
+          ${renderQuizPreview(state.previewQuiz)}
+        </div>
+      `
+      : "";
+    this.innerHTML = `
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Quiz Library</h2>
+            <div class="panel-subtitle">Reuse saved quizzes for new runs.</div>
+          </div>
+          <span class="badge">${state.quizzes.length} saved</span>
+        </div>
+        <div class="toolbar">
+          <input type="text" placeholder="Search quizzes..." value="${this.filterText}" />
+        </div>
+        <div class="list scroll">
+          ${items || "<div class='status'>No saved quizzes yet.</div>"}
+        </div>
+        ${preview}
+        <div class="status">Active quiz: ${state.quiz?.id || "none"}</div>
+      </div>
+    `;
+    this.querySelector("input[type=text]")?.addEventListener("input", (event) => {
+      this.applyFilter(event.target.value);
+    });
+    this.querySelectorAll("button[data-quiz]").forEach((btn) => {
+      btn.addEventListener("click", () => this.selectQuiz(btn.dataset.quiz));
+    });
+    this.querySelectorAll("button[data-preview]").forEach((btn) => {
+      btn.addEventListener("click", () => this.previewQuiz(btn.dataset.preview));
+    });
+    this.querySelector("button[data-clear-preview]")?.addEventListener("click", () => {
+      state.previewQuiz = null;
+      this.render();
+    });
+  }
+}
+
 class ModelPicker extends HTMLElement {
+  constructor() {
+    super();
+    this.filterText = "";
+    this.showAvailableOnly = false;
+  }
+
   connectedCallback() {
     this.load();
   }
@@ -104,11 +244,22 @@ class ModelPicker extends HTMLElement {
     const groupOptions = Object.keys(state.groups)
       .map((group) => `<option value="${group}">${group}</option>`)
       .join("");
-    const modelList = state.models
+    const filteredModels = state.models.filter((model) => {
+      if (this.showAvailableOnly && !model.available) return false;
+      if (!this.filterText) return true;
+      const haystack = `${model.id} ${model.description || ""}`.toLowerCase();
+      return haystack.includes(this.filterText);
+    });
+    const modelList = filteredModels
       .map(
         (model) => `
         <label class="list-item">
-          <input type="checkbox" value="${model.id}" ${model.available ? "" : "disabled"} />
+          <input
+            type="checkbox"
+            value="${model.id}"
+            ${model.available ? "" : "disabled"}
+            ${state.selectedModels.has(model.id) ? "checked" : ""}
+          />
           <div>
             <strong>${model.id}</strong>
             <div class="status">${model.description || "No description"}</div>
@@ -120,7 +271,13 @@ class ModelPicker extends HTMLElement {
       .join("");
     this.innerHTML = `
       <div class="panel">
-        <h2>2) Pick Models</h2>
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Model Console</h2>
+            <div class="panel-subtitle">Pick a group or cherry-pick models.</div>
+          </div>
+          <span class="badge">${state.selectedModels.size} selected</span>
+        </div>
         <div>
           <label>Model group</label>
           <select id="groupSelect">
@@ -128,11 +285,66 @@ class ModelPicker extends HTMLElement {
             ${groupOptions}
           </select>
         </div>
-        <div class="list">
+        <div class="toolbar">
+          <input type="text" placeholder="Filter models..." value="${this.filterText}" />
+          <label class="tag">
+            <input type="checkbox" ${this.showAvailableOnly ? "checked" : ""} />
+            available only
+          </label>
+        </div>
+        <div class="actions">
+          <button class="secondary" data-action="select-visible">Select visible</button>
+          <button class="secondary" data-action="clear">Clear selection</button>
+        </div>
+        <div class="list scroll list-grid">
           ${modelList}
         </div>
+        <div class="hint">Tip: filter to a short list, then select visible.</div>
       </div>
     `;
+    const groupSelect = this.querySelector("#groupSelect");
+    if (groupSelect) {
+      groupSelect.value = state.selectedGroup || "";
+      groupSelect.addEventListener("change", (event) => {
+        state.selectedGroup = event.target.value;
+      });
+    }
+    this.querySelector("input[type=text]")?.addEventListener("input", (event) => {
+      this.filterText = event.target.value.toLowerCase();
+      this.render();
+    });
+    const availableToggle = this.querySelector(".toolbar input[type=checkbox]");
+    if (availableToggle) {
+      availableToggle.addEventListener("change", (event) => {
+        this.showAvailableOnly = event.target.checked;
+        this.render();
+      });
+    }
+    this.querySelectorAll("input[type=checkbox][value]").forEach((input) => {
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          state.selectedModels.add(input.value);
+        } else {
+          state.selectedModels.delete(input.value);
+        }
+        this.render();
+      });
+    });
+    this.querySelectorAll("button[data-action]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (btn.dataset.action === "clear") {
+          state.selectedModels.clear();
+        }
+        if (btn.dataset.action === "select-visible") {
+          filteredModels.forEach((model) => {
+            if (model.available) {
+              state.selectedModels.add(model.id);
+            }
+          });
+        }
+        this.render();
+      });
+    });
   }
 }
 
@@ -147,13 +359,11 @@ class RunCreator extends HTMLElement {
     const status = this.querySelector(".status");
     const quizId = state.quiz?.id;
     if (!quizId) {
-      status.textContent = "Parse a quiz first.";
+      status.textContent = "Load a quiz first.";
       return;
     }
-    const group = document.querySelector("#groupSelect")?.value || null;
-    const checked = [...document.querySelectorAll("model-picker input[type=checkbox]:checked")].map(
-      (input) => input.value
-    );
+    const group = state.selectedGroup || null;
+    const checked = [...state.selectedModels];
     const payload = {
       quiz_id: quizId,
       models: checked.length ? checked : null,
@@ -175,10 +385,21 @@ class RunCreator extends HTMLElement {
   }
 
   render() {
+    const quizTitle = state.quiz?.title || state.quiz?.id || "none";
     this.innerHTML = `
       <div class="panel">
-        <h2>3) Launch Run</h2>
-        <div class="status">${state.quiz ? `Quiz loaded: ${state.quiz.id}` : "No quiz parsed yet."}</div>
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Run Launchpad</h2>
+            <div class="panel-subtitle">Choose a quiz, then launch.</div>
+          </div>
+          <span class="badge">Step 2</span>
+        </div>
+        <div class="status">${state.quiz ? `Quiz loaded: ${quizTitle}` : "No quiz loaded yet."}</div>
+        <div class="status">
+          Models: ${state.selectedModels.size || "none selected"}
+          ${state.selectedGroup ? `(group: ${state.selectedGroup})` : ""}
+        </div>
         <div class="actions">
           <button id="runBtn">Run Quiz</button>
         </div>
@@ -212,9 +433,15 @@ class RunList extends HTMLElement {
       .join("");
     this.innerHTML = `
       <div class="panel">
-        <h2>Runs</h2>
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Recent Runs</h2>
+            <div class="panel-subtitle">Review previous executions.</div>
+          </div>
+          <span class="badge">${state.runs.length}</span>
+        </div>
         <div class="status">${state.runError || ""}</div>
-        <div class="list">${items || "<div class='status'>No runs yet.</div>"}</div>
+        <div class="list scroll">${items || "<div class='status'>No runs yet.</div>"}</div>
       </div>
     `;
     this.querySelectorAll("button[data-run]").forEach((btn) => {
@@ -272,7 +499,12 @@ class RunResults extends HTMLElement {
       .join("");
     this.innerHTML = `
       <div class="panel">
-        <h2>Results for ${state.selectedRun}</h2>
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>Results for ${state.selectedRun}</h2>
+            <div class="panel-subtitle">Top 20 rows shown here.</div>
+          </div>
+        </div>
         <div class="status">${state.runError || ""}</div>
         <div class="status">Assets: ${assets || "none"}</div>
         <table class="table">
@@ -294,6 +526,7 @@ class RunResults extends HTMLElement {
 }
 
 customElements.define("quiz-uploader", QuizUploader);
+customElements.define("quiz-library", QuizLibrary);
 customElements.define("model-picker", ModelPicker);
 customElements.define("run-creator", RunCreator);
 customElements.define("run-list", RunList);
@@ -303,6 +536,12 @@ async function refreshRuns() {
   const data = await fetchJSON("/api/runs");
   state.runs = data.runs;
   document.dispatchEvent(new CustomEvent("runs:updated"));
+}
+
+async function refreshQuizzes() {
+  const data = await fetchJSON("/api/quizzes");
+  state.quizzes = data.quizzes || [];
+  document.dispatchEvent(new CustomEvent("quizzes:updated"));
 }
 
 async function selectRun(runId) {
@@ -355,4 +594,26 @@ function getScoringSummary(quiz) {
     return score.join(", ");
   }
   return "No explicit outcomes; defaulting to mostly-letter.";
+}
+
+function renderQuizPreview(quiz) {
+  const questions = quiz.questions || [];
+  const items = questions
+    .map((question, index) => {
+      const qid = question.id || `q${index + 1}`;
+      const options = (question.options || [])
+        .map((opt) => `<li><strong>${opt.id || ""}</strong> ${opt.text || ""}</li>`)
+        .join("");
+      return `
+        <div class="preview-item">
+          <div class="status"><strong>${qid}.</strong> ${question.text || ""}</div>
+          <ul>${options || "<li class='status'>No options listed.</li>"}</ul>
+        </div>
+      `;
+    })
+    .join("");
+  return `
+    <div class="status">Questions: ${questions.length || 0}</div>
+    <div class="preview-list">${items || "<div class='status'>No questions.</div>"}</div>
+  `;
 }
