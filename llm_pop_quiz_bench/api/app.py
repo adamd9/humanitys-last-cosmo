@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import os
+import shutil
 import uuid
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from ..core.runtime_data import get_runtime_paths
 from ..core.runner import run_sync
 from ..core.sqlite_store import (
     connect,
+    delete_quiz,
     fetch_assets,
     fetch_quiz_record,
     fetch_quiz_yaml,
@@ -183,6 +185,30 @@ def get_quiz(quiz_id: str) -> dict:
         "raw_payload": record.get("raw_payload"),
         "raw_preview": raw_preview,
     }
+
+
+@app.delete("/api/quizzes/{quiz_id}")
+def remove_quiz(quiz_id: str) -> dict:
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    record = fetch_quiz_record(conn, quiz_id)
+    if not record:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    run_ids = delete_quiz(conn, quiz_id)
+    conn.close()
+
+    quiz_path = runtime_paths.quizzes_dir / f"{quiz_id}.yaml"
+    if quiz_path.exists():
+        quiz_path.unlink()
+
+    for run_id in run_ids:
+        run_assets_dir = runtime_paths.assets_dir / run_id
+        if run_assets_dir.exists():
+            shutil.rmtree(run_assets_dir, ignore_errors=True)
+
+    return {"status": "deleted", "quiz_id": quiz_id, "runs_removed": len(run_ids)}
 
 
 @app.post("/api/quizzes/parse")
