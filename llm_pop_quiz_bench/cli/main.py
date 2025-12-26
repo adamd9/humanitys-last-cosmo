@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -19,6 +18,7 @@ from ..core import reporter
 from ..core.model_config import model_config_loader
 from ..core.quiz_converter import text_to_yaml
 from ..core.runner import run_sync
+from ..core.runtime_data import get_runtime_paths
 
 app = typer.Typer()
 
@@ -37,21 +37,10 @@ def benchmark(
         group: Model group name from config (e.g., "default", "openai_comparison", "premium")
     """
     
-    # Extract quiz name from filename for directory structure
-    quiz_name = quiz.stem  # Gets filename without extension
     run_id = uuid.uuid4().hex
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
-    
-    # Create timestamped run directory with quiz name
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_dir_name = f"{timestamp}_{quiz_name}_{run_id[:8]}"
-    
-    if use_mocks:
-        results_base_dir = Path("results_mock")
-    else:
-        results_base_dir = Path("results")
-    
-    results_dir = results_base_dir / run_dir_name
+
+    runtime_paths = get_runtime_paths()
     
     # Determine which models to use
     if models:
@@ -110,14 +99,14 @@ def benchmark(
     typer.echo(f"✅ Running quiz with {len(adapters)} adapter(s)")
     
     # Run the quiz
-    run_sync(quiz, adapters, run_id, results_dir)
+    run_sync(quiz, adapters, run_id, runtime_paths.root)
     
     typer.echo(f"📊 Generating comprehensive report...")
     
     # Generate the report immediately
-    reporter.generate_markdown_report(run_id, results_base_dir)
+    reporter.generate_markdown_report(run_id, runtime_paths.root)
     
-    typer.echo(f"🎉 Benchmark complete! Results in: {results_dir}")
+    typer.echo(f"🎉 Benchmark complete! Assets in: {runtime_paths.assets_dir / run_id}")
     typer.echo(f"📁 Run ID: {run_id}")
 
 
@@ -176,17 +165,7 @@ def quiz_run(quiz: Path, models: str = None) -> None:
     run_id = uuid.uuid4().hex
     adapters = []
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
-    
-    # Create timestamped run directory
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_dir_name = f"{timestamp}_{run_id[:8]}"
-    
-    if use_mocks:
-        results_base_dir = Path("results_mock")
-    else:
-        results_base_dir = Path("results")
-    
-    results_dir = results_base_dir / run_dir_name
+    runtime_paths = get_runtime_paths()
     
     # If no models specified, use all available models
     if models is None:
@@ -242,7 +221,7 @@ def quiz_run(quiz: Path, models: str = None) -> None:
         quiz_path=quiz,
         adapters=adapters,
         run_id=run_id,
-        results_dir=results_dir,
+        runtime_dir=runtime_paths.root,
     )
     typer.echo(f"Run ID: {run_id}")
 
@@ -263,11 +242,10 @@ def quiz_convert(text_file: Path, model: str = "gpt-4o") -> None:
 
 
 @app.command("quiz:report")
-def quiz_report(run_id: str, results_dir: Path = Path("results")) -> None:
+def quiz_report(run_id: str) -> None:
     """Generate Markdown and CSV summaries for a run."""
-    # The new directory structure doesn't need special handling here
-    # The reporter will automatically find the timestamped directory
-    reporter.generate_markdown_report(run_id, results_dir)
+    runtime_paths = get_runtime_paths()
+    reporter.generate_markdown_report(run_id, runtime_paths.root)
 
 
 if __name__ == "__main__":

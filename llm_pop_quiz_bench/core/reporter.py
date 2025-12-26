@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Iterable
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
-import yaml
 
 from . import visualizer
 from .llm_scorer import score_quiz_with_llm, score_quiz_fallback
-from .scorer import infer_mostly_letter, infer_mostly_tag
-from .store import read_jsonl, write_csv
+from .runtime_data import build_runtime_paths, get_runtime_paths
+from .sqlite_store import connect, fetch_quiz_def, fetch_results, insert_asset
+from .store import write_csv
 
 
 def render_outcomes_table(quiz_title: str, outcomes: Iterable[tuple[str, str]]) -> str:
@@ -26,61 +27,11 @@ def write_summary_csv(path: Path, rows: Iterable[dict]) -> None:
     write_csv(path, df.to_dict(orient="records"))
 
 
-def load_results(run_id: str, results_dir: Path) -> pd.DataFrame:
-    rows: list[dict] = []
-    # Look for results in the new timestamped directory structure
-    # First try to find the timestamped directory containing this run_id
-    run_results_dir = None
-    
-    # Check both results and results_mock directories
-    for base_dir in [Path("results"), Path("results_mock")]:
-        if base_dir.exists():
-            for timestamped_dir in base_dir.iterdir():
-                if timestamped_dir.is_dir() and run_id[:8] in timestamped_dir.name:
-                    run_results_dir = timestamped_dir / "raw"
-                    break
-            if run_results_dir:
-                break
-    
-    # Fallback to old structure for backward compatibility
-    if not run_results_dir or not run_results_dir.exists():
-        run_results_dir = results_dir / "raw" / run_id
-    
-    if run_results_dir.exists():
-        for path in run_results_dir.iterdir():
-            if path.suffix == ".json":
-                data = json.loads(path.read_text(encoding="utf-8"))
-                quiz_id = data.get("quiz_id", path.stem)
-                for model_id, recs in data.get("results", {}).items():
-                    for rec in recs:
-                        rec.update(
-                            {
-                                "run_id": run_id,
-                                "quiz_id": quiz_id,
-                                "model_id": model_id,
-                            }
-                        )
-                        rows.append(rec)
-            elif path.suffix == ".jsonl":
-                parts = path.stem.split(".")
-                if len(parts) < 2:
-                    continue
-                quiz_id, model_id = parts
-                recs = read_jsonl(path)
-                for rec in recs:
-                    rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
-                    rows.append(rec)
-    else:
-        # Fallback to old structure for backward compatibility
-        for path in (results_dir / "raw").glob(f"{run_id}.*.jsonl"):
-            parts = path.stem.split(".")
-            if len(parts) < 3:
-                continue
-            _, quiz_id, model_id = parts
-            recs = read_jsonl(path)
-            for rec in recs:
-                rec.update({"run_id": run_id, "quiz_id": quiz_id, "model_id": model_id})
-                rows.append(rec)
+def load_results(run_id: str, runtime_dir: Path | None = None) -> pd.DataFrame:
+    runtime_paths = get_runtime_paths() if runtime_dir is None else build_runtime_paths(runtime_dir)
+    conn = connect(runtime_paths.db_path)
+    rows = fetch_results(conn, run_id)
+    conn.close()
     return pd.DataFrame(rows)
 
 
@@ -309,7 +260,14 @@ def compute_model_outcomes(df: pd.DataFrame, quiz_def: dict) -> list[dict[str, s
     return outcomes
 
 
-def generate_charts(df: pd.DataFrame, out_dir: Path, run_id: str, quiz_id: str, outcome_csv_path: Path = None) -> dict[str, Path]:
+def generate_charts(
+    df: pd.DataFrame,
+    out_dir: Path,
+    run_id: str,
+    quiz_id: str,
+    quiz_def: dict,
+    outcome_csv_path: Path | None = None,
+) -> dict[str, Path]:
     """Generate unified comparative charts showing all models together."""
     import numpy as np
     from math import pi
@@ -334,42 +292,24 @@ def generate_charts(df: pd.DataFrame, out_dir: Path, run_id: str, quiz_id: str, 
     # Load quiz definition to get meaningful labels and outcomes
     choice_labels = {}
     outcome_labels = {}
-    quiz_def = None
-    
-    try:
-        # Find the quiz file by searching for the quiz ID within files
-        quizzes_dir = Path("quizzes")
-        for yaml_file in quizzes_dir.glob("*.yaml"):
-            try:
-                import yaml
-                quiz_content = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-                if quiz_content.get("id") == quiz_id:
-                    quiz_def = quiz_content
-                    break
-            except (yaml.YAMLError, FileNotFoundError):
-                continue
-        
-        if quiz_def:
-            # Build mapping from choice ID to meaningful text (for choice-level charts)
-            for question in quiz_def.get("questions", []):
-                for option in question.get("options", []):
-                    choice_id = option.get("id")
-                    choice_text = option.get("text", choice_id)
-                    if choice_id and choice_id not in choice_labels:
-                        # Truncate long text for better chart readability
-                        if len(choice_text) > 25:
-                            choice_text = choice_text[:22] + "..."
-                        choice_labels[choice_id] = choice_text
-            
-            # Build mapping of outcomes (personalities/results)
-            for outcome in quiz_def.get("outcomes", []):
-                outcome_id = outcome.get("id")
-                outcome_text = outcome.get("text", outcome_id)
-                if outcome_id:
-                    outcome_labels[outcome_id] = outcome_text
-    except Exception:
-        # Fallback to using choice IDs if anything goes wrong
-        pass
+    if quiz_def:
+        # Build mapping from choice ID to meaningful text (for choice-level charts)
+        for question in quiz_def.get("questions", []):
+            for option in question.get("options", []):
+                choice_id = option.get("id")
+                choice_text = option.get("text", choice_id)
+                if choice_id and choice_id not in choice_labels:
+                    # Truncate long text for better chart readability
+                    if len(choice_text) > 25:
+                        choice_text = choice_text[:22] + "..."
+                    choice_labels[choice_id] = choice_text
+
+        # Build mapping of outcomes (personalities/results)
+        for outcome in quiz_def.get("outcomes", []):
+            outcome_id = outcome.get("id")
+            outcome_text = outcome.get("text", outcome_id)
+            if outcome_id:
+                outcome_labels[outcome_id] = outcome_text
     
     # Create display labels for choices
     choice_display_labels = [choice_labels.get(choice, choice) for choice in all_choices]
@@ -816,22 +756,9 @@ def create_outcome_heatmap(outcome_df: pd.DataFrame, quiz_def: dict, out_dir: Pa
         return None
 
 
-def create_outcome_summary(df: pd.DataFrame, quiz_id: str) -> list[dict]:
+def create_outcome_summary(df: pd.DataFrame, quiz_def: dict) -> list[dict]:
     """Create outcome-focused summary data for CSV export and chart generation."""
     try:
-        # Find the quiz file by searching for the quiz ID within files
-        quizzes_dir = Path("quizzes")
-        quiz_def = None
-        for yaml_file in quizzes_dir.glob("*.yaml"):
-            try:
-                import yaml
-                quiz_content = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-                if quiz_content.get("id") == quiz_id:
-                    quiz_def = quiz_content
-                    break
-            except (yaml.YAMLError, FileNotFoundError):
-                continue
-        
         if not quiz_def or not quiz_def.get("outcomes"):
             return []
         
@@ -878,7 +805,7 @@ def create_outcome_summary(df: pd.DataFrame, quiz_id: str) -> list[dict]:
             # Add to summary
             outcome_summary.append({
                 "run_id": df["run_id"].iloc[0],
-                "quiz_id": quiz_id,
+                "quiz_id": quiz_def.get("id", ""),
                 "model_id": model,
                 "outcome_id": outcome,
                 "outcome_text": outcome,
@@ -889,57 +816,41 @@ def create_outcome_summary(df: pd.DataFrame, quiz_id: str) -> list[dict]:
         return outcome_summary
         
     except Exception as e:
+        quiz_id = quiz_def.get("id", "unknown")
         print(f"Warning: Could not create outcome summary for {quiz_id}: {e}")
         return []
 
 
-def generate_markdown_report(run_id: str, results_dir: Path) -> None:
-    df = load_results(run_id, results_dir)
+def generate_markdown_report(run_id: str, runtime_dir: Path | None = None) -> None:
+    df = load_results(run_id, runtime_dir)
     if df.empty:
         raise ValueError(f"No results for run {run_id}")
-    
-    # Find the timestamped directory for this run
-    timestamped_dir = None
-    for base_dir in [Path("results"), Path("results_mock")]:
-        if base_dir.exists():
-            for ts_dir in base_dir.iterdir():
-                if ts_dir.is_dir() and run_id[:8] in ts_dir.name:
-                    timestamped_dir = ts_dir
-                    break
-            if timestamped_dir:
-                break
-    
-    # Fallback to old structure
-    if not timestamped_dir:
-        timestamped_dir = results_dir
-    
-    summary_dir = timestamped_dir / "summary"
+
+    runtime_paths = get_runtime_paths() if runtime_dir is None else build_runtime_paths(runtime_dir)
+    run_assets_dir = runtime_paths.assets_dir / run_id
+    summary_dir = run_assets_dir / "reports"
+    charts_dir = run_assets_dir / "charts"
     summary_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Write raw choice-level CSV for debugging
-    write_summary_csv(summary_dir / f"{run_id}_raw_choices.csv", df.to_dict(orient="records"))
+    charts_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_choices_path = summary_dir / f"{run_id}_raw_choices.csv"
+    write_summary_csv(raw_choices_path, df.to_dict(orient="records"))
+
+    conn = connect(runtime_paths.db_path)
+    insert_asset(conn, run_id, "csv_raw_choices", raw_choices_path)
 
     for quiz_id, qdf in df.groupby("quiz_id"):
+        quiz_def = fetch_quiz_def(conn, quiz_id)
+        if not quiz_def:
+            raise ValueError(f"Quiz definition not found for quiz ID: {quiz_id}")
+
         # Create outcome-focused CSV for this quiz
-        outcome_summary_data = create_outcome_summary(qdf, quiz_id)
+        outcome_summary_data = create_outcome_summary(qdf, quiz_def)
+        outcome_csv_path = summary_dir / f"{run_id}_{quiz_id}_outcomes.csv"
         if outcome_summary_data:
-            write_summary_csv(summary_dir / f"{run_id}_{quiz_id}_outcomes.csv", outcome_summary_data)
-        # Find the quiz file by searching for the quiz ID within files
-        quiz_path = None
-        quizzes_dir = Path("quizzes")
-        for yaml_file in quizzes_dir.glob("*.yaml"):
-            try:
-                quiz_content = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
-                if quiz_content.get("id") == quiz_id:
-                    quiz_path = yaml_file
-                    break
-            except (yaml.YAMLError, FileNotFoundError):
-                continue
-        
-        if not quiz_path:
-            raise ValueError(f"Quiz file not found for quiz ID: {quiz_id}")
-        
-        quiz_def = yaml.safe_load(quiz_path.read_text(encoding="utf-8"))
+            write_summary_csv(outcome_csv_path, outcome_summary_data)
+            insert_asset(conn, run_id, "csv_outcomes", outcome_csv_path)
+
         outcomes = compute_model_outcomes(qdf, quiz_def)
         md_lines = [f"# {quiz_def['title']}", f"Source: {quiz_def['source']['url']}"]
         md_lines.append("\n## Outcomes")
@@ -952,16 +863,16 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
         md_lines.append(render_question_table(qdf, quiz_def))
 
         # Generate charts using outcome-focused data if available
-        outcome_csv_path = summary_dir / f"{run_id}_{quiz_id}_outcomes.csv"
-        chart_paths = generate_charts(qdf, timestamped_dir / "charts", run_id, quiz_id, outcome_csv_path)
+        chart_paths = generate_charts(qdf, charts_dir, run_id, quiz_id, quiz_def, outcome_csv_path)
         for chart_type, chart_path in chart_paths.items():
             if chart_path and chart_path.exists():
                 relative_path = f"../charts/{chart_path.name}"
                 md_lines.append(f"\n![{chart_path.stem}]({relative_path})\n")
-        
+                insert_asset(conn, run_id, f"chart_{chart_type}", chart_path)
+
         # Add fun results interpretation section
         md_lines.append("\n## Results Summary and Interpretation")
-        
+
         # Calculate affinity scores for interpretation if we have outcome data
         affinity_scores = None
         if outcome_csv_path.exists():
@@ -970,22 +881,22 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
                 affinity_scores = calculate_outcome_affinities(outcome_df, quiz_def)
             except Exception:
                 pass
-        
+
         interpretation = render_results_interpretation(qdf, outcomes, quiz_def, affinity_scores)
         md_lines.append(interpretation)
-        
+
         # Add AI reasoning section
         md_lines.append("\n## AI Reasoning and Insights")
         reasoning_section = render_ai_reasoning_section(qdf, quiz_def)
         md_lines.append(reasoning_section)
-        
+
         # Add reference sections at the end
         md_lines.append("\n---")
         md_lines.append("\n# Reference")
-        
+
         md_lines.append("\n## Questions and Answer Options")
         md_lines.append(render_questions_and_answers(quiz_def))
-        
+
         md_lines.append("\n## Method")
         md_lines.append(render_method_section(quiz_def))
 
@@ -994,16 +905,20 @@ def generate_markdown_report(run_id: str, results_dir: Path) -> None:
                 qdf,
                 outcomes,
                 quiz_def,
-                timestamped_dir / "pandasai_charts",
+                run_assets_dir / "pandasai_charts",
                 run_id,
                 quiz_id,
             )
             for path in vis_paths.values():
                 rel = path.relative_to(summary_dir.parent)
                 md_lines.append(f"\n![{path.stem}]({rel.as_posix()})")
+                insert_asset(conn, run_id, "chart_pandasai", path)
         except Exception:
             pass
 
         md_content = "\n".join(md_lines)
         md_file = summary_dir / f"{run_id}.{quiz_id}.md"
         md_file.write_text(md_content, encoding="utf-8")
+        insert_asset(conn, run_id, "report_markdown", md_file)
+
+    conn.close()

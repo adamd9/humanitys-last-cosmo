@@ -1,5 +1,4 @@
 import asyncio
-import json
 import sys
 from pathlib import Path
 
@@ -9,6 +8,7 @@ import yaml
 
 from llm_pop_quiz_bench.adapters.mock_adapter import MockAdapter
 from llm_pop_quiz_bench.core.runner import run_quiz
+from llm_pop_quiz_bench.core.sqlite_store import connect, fetch_results
 
 
 async def _run(tmp_path: Path):
@@ -31,36 +31,21 @@ async def _run(tmp_path: Path):
     quiz_path = tmp_path / "quiz.yaml"
     with open(quiz_path, "w", encoding="utf-8") as f:
         yaml.safe_dump(quiz, f)
-    # Simulate the new timestamped directory structure that CLI creates
-    from datetime import datetime
     run_id = "test-run"
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_dir_name = f"{timestamp}_{run_id[:8]}"
-    
-    results_base_dir = tmp_path / "results"
-    timestamped_dir = results_base_dir / run_dir_name
-    
-    await run_quiz(quiz_path, [MockAdapter()], run_id, timestamped_dir)
-    
-    # Check that results are stored in timestamped directory structure
-    assert timestamped_dir.exists(), f"Expected timestamped directory {timestamped_dir}"
-    
-    raw_dir = timestamped_dir / "raw"
-    assert raw_dir.exists(), f"Expected raw subdirectory in {timestamped_dir}"
-    
-    json_files = list(raw_dir.glob("*.json"))
-    assert len(json_files) == 1, f"Expected exactly one JSON file, found {len(json_files)}"
-    
-    # Validate JSON content structure
-    json_file = json_files[0]
-    data = json.loads(json_file.read_text(encoding="utf-8"))
-    assert "run_id" in data
-    assert "quiz_id" in data
-    assert "results" in data
-    # Check for mock adapter results (ID format is "mock:mock")
-    mock_key = next((k for k in data["results"].keys() if "mock" in k), None)
-    assert mock_key is not None, f"Expected mock adapter results, found keys: {list(data['results'].keys())}"
-    assert len(data["results"][mock_key]) == 1  # One question in this test
+    runtime_dir = tmp_path / "runtime-data"
+    await run_quiz(quiz_path, [MockAdapter()], run_id, runtime_dir)
+
+    # Check that results are stored in SQLite
+    db_path = runtime_dir / "db" / "quizbench.sqlite3"
+    assert db_path.exists(), f"Expected database at {db_path}"
+
+    conn = connect(db_path)
+    rows = fetch_results(conn, run_id)
+    conn.close()
+
+    assert rows, "Expected at least one result row"
+    assert rows[0]["run_id"] == run_id
+    assert "mock" in rows[0]["model_id"]
 
 
 def test_runner_mocked(tmp_path):

@@ -4,13 +4,14 @@ import asyncio
 import time
 from pathlib import Path
 
-import json
 import yaml
 
 from ..adapters.base import ChatAdapter
 from .prompt import PromptContext, render_prompt
 from .types import QAResult
 from .utils import parse_choice_json
+from .runtime_data import build_runtime_paths, get_runtime_paths
+from .sqlite_store import connect, insert_results, insert_run, update_run_status, upsert_quiz
 
 
 def _extract_actual_error(exception: Exception) -> str:
@@ -42,16 +43,27 @@ def _get_model_params(adapter) -> dict:
 
 
 async def run_quiz(
-    quiz_path: Path, adapters: list[ChatAdapter], run_id: str, results_dir: Path
+    quiz_path: Path, adapters: list[ChatAdapter], run_id: str, runtime_dir: Path | None = None
 ) -> None:
-    with open(quiz_path, encoding="utf-8") as f:
-        quiz = yaml.safe_load(f)
+    quiz_yaml = quiz_path.read_text(encoding="utf-8")
+    quiz = yaml.safe_load(quiz_yaml)
 
     questions = quiz["questions"]
-    all_results: dict[str, list[dict]] = {}
 
     successful_adapters = []
     failed_adapters = []
+
+    runtime_paths = get_runtime_paths() if runtime_dir is None else build_runtime_paths(runtime_dir)
+
+    conn = connect(runtime_paths.db_path)
+    upsert_quiz(conn, quiz, quiz_yaml)
+    insert_run(
+        conn,
+        run_id=run_id,
+        quiz_id=quiz["id"],
+        status="running",
+        models=[adapter.id for adapter in adapters],
+    )
     
     for adapter in adapters:
         try:
@@ -118,7 +130,7 @@ async def run_quiz(
             print(f"❌ Model {adapter.id} failed completely: {actual_error}")
             failed_adapters.append((adapter.id, actual_error))
             continue
-        all_results[adapter.id] = model_records
+        insert_results(conn, run_id, quiz["id"], adapter.id, model_records)
 
     # Print summary of model results
     print("\n" + "="*60)
@@ -143,12 +155,8 @@ async def run_quiz(
     
     print("="*60 + "\n")
 
-    # Create raw subdirectory within the timestamped run directory
-    raw_dir = results_dir / "raw"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    out_path = raw_dir / f"{quiz['id']}.json"
-    payload = {"run_id": run_id, "quiz_id": quiz["id"], "results": all_results}
-    out_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    update_run_status(conn, run_id, "completed")
+    conn.close()
 
 
 def run_sync(*args, **kwargs) -> None:

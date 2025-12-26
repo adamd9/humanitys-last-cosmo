@@ -7,6 +7,9 @@ python-dateutil
 python-dotenv
 tqdm
 structlog
+fastapi
+uvicorn
+python-multipart
 openai
 anthropic
 google-generativeai
