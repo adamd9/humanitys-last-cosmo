@@ -33,7 +33,8 @@ def _init_db(conn: sqlite3.Connection) -> None:
             title TEXT NOT NULL,
             source_json TEXT NOT NULL,
             quiz_yaml TEXT NOT NULL,
-            raw_json TEXT NOT NULL DEFAULT '{}'
+            raw_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS results (
@@ -61,6 +62,14 @@ def _init_db(conn: sqlite3.Connection) -> None:
         """
     )
     _ensure_column(conn, "quizzes", "raw_json", "TEXT NOT NULL DEFAULT '{}'", "{}")
+    timestamp = datetime.now(timezone.utc).isoformat()
+    _ensure_column(
+        conn,
+        "quizzes",
+        "created_at",
+        f"TEXT NOT NULL DEFAULT '{timestamp}'",
+        timestamp,
+    )
     conn.commit()
 
 
@@ -90,17 +99,18 @@ def upsert_quiz(
     title = quiz_def.get("title", "")
     source_json = json.dumps(quiz_def.get("source", {}), ensure_ascii=False)
     raw_json = json.dumps(raw_payload or {}, ensure_ascii=False)
+    created_at = datetime.now(timezone.utc).isoformat()
     conn.execute(
         """
-        INSERT INTO quizzes (quiz_id, title, source_json, quiz_yaml, raw_json)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO quizzes (quiz_id, title, source_json, quiz_yaml, raw_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(quiz_id) DO UPDATE SET
             title=excluded.title,
             source_json=excluded.source_json,
             quiz_yaml=excluded.quiz_yaml,
             raw_json=excluded.raw_json
         """,
-        (quiz_id, title, source_json, quiz_yaml, raw_json),
+        (quiz_id, title, source_json, quiz_yaml, raw_json, created_at),
     )
     conn.commit()
 
@@ -135,6 +145,29 @@ def insert_run(
 def update_run_status(conn: sqlite3.Connection, run_id: str, status: str) -> None:
     conn.execute("UPDATE runs SET status=? WHERE run_id=?", (status, run_id))
     conn.commit()
+
+
+def mark_stale_runs_failed(
+    conn: sqlite3.Connection,
+    statuses: Iterable[str] = ("queued", "running", "reporting"),
+    new_status: str = "failed",
+) -> list[str]:
+    status_list = list(statuses)
+    if not status_list:
+        return []
+    placeholders = ", ".join(["?"] * len(status_list))
+    rows = conn.execute(
+        f"SELECT run_id FROM runs WHERE status IN ({placeholders})",
+        status_list,
+    ).fetchall()
+    run_ids = [row["run_id"] for row in rows]
+    if run_ids:
+        conn.execute(
+            f"UPDATE runs SET status = ? WHERE status IN ({placeholders})",
+            (new_status, *status_list),
+        )
+        conn.commit()
+    return run_ids
 
 
 def insert_results(
@@ -257,9 +290,9 @@ def fetch_quiz_yaml(conn: sqlite3.Connection, quiz_id: str) -> str | None:
 def fetch_quizzes(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute(
         """
-        SELECT quiz_id, title, source_json, raw_json
+        SELECT quiz_id, title, source_json, raw_json, created_at
         FROM quizzes
-        ORDER BY quiz_id
+        ORDER BY created_at DESC, quiz_id DESC
         """
     ).fetchall()
     items = []

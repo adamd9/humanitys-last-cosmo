@@ -12,7 +12,7 @@ load_dotenv()
 
 from ..core import reporter
 from ..core.model_config import model_config_loader
-from ..core.openrouter import fetch_user_models, normalize_models, with_prefix
+from ..core.openrouter import fetch_user_models, normalize_models, strip_prefix
 from ..core.quiz_converter import text_to_yaml
 from ..core.runner import run_sync
 from ..core.runtime_data import get_runtime_paths
@@ -30,7 +30,7 @@ def benchmark(
     
     Args:
         quiz: Path to the quiz YAML file
-        models: Comma-separated list of model IDs (e.g., "openrouter:openai/gpt-4o")
+        models: Comma-separated list of model IDs (e.g., "openai/gpt-4o")
         group: Model group name from config (e.g., "default", "openai_comparison")
     """
     
@@ -49,7 +49,7 @@ def benchmark(
 
     # Determine which models to use
     if models:
-        model_ids = [with_prefix(m.strip()) for m in models.split(",")]
+        model_ids = [strip_prefix(m.strip()) for m in models.split(",")]
     else:
         try:
             model_ids = model_config_loader.model_groups[group]
@@ -132,13 +132,13 @@ def list_models() -> None:
     typer.echo("")
     typer.echo("📝 Usage Examples:")
     typer.echo("  # Use specific models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openrouter:openai/gpt-4o")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openai/gpt-4o")
     typer.echo("")
     typer.echo("  # Use specific model group")
     typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --group openai_comparison")
     typer.echo("")
     typer.echo("  # Use specific models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openrouter:openai/gpt-4o,openrouter:anthropic/claude-3.5-sonnet")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openai/gpt-4o,anthropic/claude-3.5-sonnet")
 
 
 @app.command("quiz:run")
@@ -157,7 +157,7 @@ def quiz_run(quiz: Path, models: str = None) -> None:
         typer.echo("❌ OPENROUTER_API_KEY is required.")
         raise typer.Exit(1)
 
-    model_ids = [with_prefix(m.strip()) for m in models.split(",")]
+    model_ids = [strip_prefix(m.strip()) for m in models.split(",")]
     adapters = model_config_loader.create_adapters(model_ids, use_mocks)
 
     if not adapters:
@@ -176,7 +176,7 @@ def quiz_run(quiz: Path, models: str = None) -> None:
 
 @app.command("quiz:demo")
 def quiz_demo() -> None:
-    quiz_run(Path("quizzes/sample_ninja_turtles.yaml"), models="openrouter:openai/gpt-4o")
+    quiz_run(Path("quizzes/sample_ninja_turtles.yaml"), models="openai/gpt-4o")
 
 
 @app.command("quiz:convert")

@@ -34,7 +34,7 @@ def test_cli_mock_results_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("LLM_POP_QUIZ_ENV", "mock")
     monkeypatch.chdir(tmp_path)
 
-    quiz_run(quiz_path, models="openrouter:openai/gpt-4o")
+    quiz_run(quiz_path, models="openai/gpt-4o")
 
     db_path = runtime_dir / "db" / "quizbench.sqlite3"
     assert db_path.exists(), "Expected runtime SQLite database"

@@ -4,6 +4,7 @@ import base64
 import os
 import shutil
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
@@ -14,7 +15,7 @@ from pydantic import BaseModel
 
 from ..core import reporter
 from ..core.model_config import model_config_loader
-from ..core.openrouter import fetch_user_models, normalize_models, with_prefix
+from ..core.openrouter import fetch_user_models, normalize_models, strip_prefix
 from ..core.quiz_meta import build_quiz_meta
 from ..core.quiz_converter import convert_to_yaml
 from ..core.runtime_data import build_runtime_paths, get_runtime_paths
@@ -29,6 +30,8 @@ from ..core.sqlite_store import (
     fetch_results,
     fetch_run,
     fetch_runs,
+    insert_run,
+    mark_stale_runs_failed,
     update_run_status,
     upsert_quiz,
 )
@@ -81,6 +84,25 @@ def _sanitize_yaml(text: str) -> str:
                 continue
         lines.append(line)
     return "\n".join(lines)
+
+
+def _append_server_log(path: Path, message: str) -> None:
+    timestamp = datetime.now(timezone.utc).isoformat()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{timestamp}] {message}\n")
+
+
+@app.on_event("startup")
+def cleanup_stale_runs() -> None:
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    run_ids = mark_stale_runs_failed(conn)
+    conn.close()
+    if run_ids:
+        for run_id in run_ids:
+            log_path = runtime_paths.logs_dir / f"{run_id}.log"
+            _append_server_log(log_path, "Server restarted; run marked as failed.")
 
 
 class RunRequest(BaseModel):
@@ -390,7 +412,7 @@ def create_run(req: RunRequest, background_tasks: BackgroundTasks) -> dict:
         raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is required")
 
     if req.models:
-        model_ids = [with_prefix(model_id) for model_id in req.models]
+        model_ids = [strip_prefix(model_id) for model_id in req.models]
         adapters = model_config_loader.create_adapters(model_ids, use_mocks)
     elif req.group:
         try:
@@ -403,6 +425,16 @@ def create_run(req: RunRequest, background_tasks: BackgroundTasks) -> dict:
         raise HTTPException(status_code=400, detail="No available models to run")
 
     run_id = uuid.uuid4().hex
+    conn = connect(runtime_paths.db_path)
+    insert_run(
+        conn,
+        run_id=run_id,
+        quiz_id=req.quiz_id,
+        status="queued",
+        models=[adapter.id for adapter in adapters],
+        settings={"group": req.group} if req.group else None,
+    )
+    conn.close()
     background_tasks.add_task(
         _run_and_report,
         quiz_path,

@@ -10,9 +10,9 @@ from llm_pop_quiz_bench.core import reporter
 def test_markdown_table_renders():
     md = reporter.render_outcomes_table(
         quiz_title="Sample Quiz",
-        outcomes=[("openrouter:openai/gpt-4o", "Leonardo"), ("openrouter:anthropic/claude-3.5-sonnet", "Donatello")],
+        outcomes=[("openai/gpt-4o", "Leonardo"), ("anthropic/claude-3.5-sonnet", "Donatello")],
     )
-    assert "openrouter:openai/gpt-4o" in md
+    assert "openai/gpt-4o" in md
 
 
 def test_ai_reasoning_includes_answer_text():

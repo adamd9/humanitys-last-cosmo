@@ -9,12 +9,6 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_PREFIX = "openrouter:"
 
 
-def with_prefix(model_id: str) -> str:
-    if model_id.startswith(OPENROUTER_PREFIX):
-        return model_id
-    return f"{OPENROUTER_PREFIX}{model_id}"
-
-
 def strip_prefix(model_id: str) -> str:
     if model_id.startswith(OPENROUTER_PREFIX):
         return model_id[len(OPENROUTER_PREFIX) :]
@@ -42,11 +36,12 @@ def normalize_models(raw_models: list[dict[str, Any]]) -> list[dict[str, Any]]:
         model_id = entry.get("id")
         if not model_id:
             continue
+        clean_id = strip_prefix(model_id)
         normalized.append(
             {
-                "id": with_prefix(model_id),
-                "model": model_id,
-                "name": entry.get("name") or model_id,
+                "id": clean_id,
+                "model": clean_id,
+                "name": entry.get("name") or clean_id,
                 "description": entry.get("description") or "",
                 "context_length": entry.get("context_length"),
                 "pricing": entry.get("pricing"),
