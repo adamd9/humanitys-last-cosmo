@@ -12,6 +12,7 @@ const state = {
   runResults: [],
   assets: [],
   runError: null,
+  currentStep: 1,
 };
 
 async function fetchJSON(url, options) {
@@ -92,12 +93,16 @@ class QuizUploader extends HTMLElement {
         </div>
         <div class="actions">
           <button>Parse to YAML</button>
+          <button class="secondary" data-next>Next</button>
         </div>
         <div class="status">Waiting for input.</div>
         ${quizMeta}
         <pre class="preview">${previewText}</pre>
       </div>
     `;
+    this.querySelector("button[data-next]")?.addEventListener("click", () => {
+      setCurrentStep(2);
+    });
   }
 }
 
@@ -204,6 +209,9 @@ class QuizLibrary extends HTMLElement {
         </div>
         ${preview}
         <div class="status">Active quiz: ${state.quiz?.id || "none"}</div>
+        <div class="actions">
+          <button class="secondary" data-next>Next</button>
+        </div>
       </div>
     `;
     this.querySelector("input[type=text]")?.addEventListener("input", (event) => {
@@ -218,6 +226,9 @@ class QuizLibrary extends HTMLElement {
     this.querySelector("button[data-clear-preview]")?.addEventListener("click", () => {
       state.previewQuiz = null;
       this.render();
+    });
+    this.querySelector("button[data-next]")?.addEventListener("click", () => {
+      setCurrentStep(3);
     });
   }
 }
@@ -295,6 +306,7 @@ class ModelPicker extends HTMLElement {
         <div class="actions">
           <button class="secondary" data-action="select-visible">Select visible</button>
           <button class="secondary" data-action="clear">Clear selection</button>
+          <button data-next>Next</button>
         </div>
         <div class="list scroll list-grid">
           ${modelList}
@@ -344,6 +356,9 @@ class ModelPicker extends HTMLElement {
         }
         this.render();
       });
+    });
+    this.querySelector("button[data-next]")?.addEventListener("click", () => {
+      setCurrentStep(4);
     });
   }
 }
@@ -402,11 +417,15 @@ class RunCreator extends HTMLElement {
         </div>
         <div class="actions">
           <button id="runBtn">Run Quiz</button>
+          <button class="secondary" data-back>Back</button>
         </div>
         <div class="status">Results will appear in the runs list.</div>
       </div>
     `;
     this.querySelector("#runBtn").addEventListener("click", () => this.createRun());
+    this.querySelector("button[data-back]")?.addEventListener("click", () => {
+      setCurrentStep(3);
+    });
   }
 }
 
@@ -532,6 +551,42 @@ customElements.define("run-creator", RunCreator);
 customElements.define("run-list", RunList);
 customElements.define("run-results", RunResults);
 
+class StepperNav extends HTMLElement {
+  connectedCallback() {
+    this.render();
+    document.addEventListener("step:changed", () => this.render());
+  }
+
+  render() {
+    const steps = [
+      { id: 1, label: "Convert quiz" },
+      { id: 2, label: "Choose quiz" },
+      { id: 3, label: "Pick models" },
+      { id: 4, label: "Run + review" },
+    ];
+    const buttons = steps
+      .map(
+        (step) => `
+        <button class="${state.currentStep === step.id ? "active" : ""}" data-step="${step.id}">
+          ${step.id}. ${step.label}
+        </button>
+      `
+      )
+      .join("");
+    this.innerHTML = `
+      <div class="stepper">
+        <div class="stepper-nav">${buttons}</div>
+        <div class="step-hint">Follow the steps left to right. Your current stage is highlighted.</div>
+      </div>
+    `;
+    this.querySelectorAll("button[data-step]").forEach((btn) => {
+      btn.addEventListener("click", () => setCurrentStep(Number(btn.dataset.step)));
+    });
+  }
+}
+
+customElements.define("stepper-nav", StepperNav);
+
 async function refreshRuns() {
   const data = await fetchJSON("/api/runs");
   state.runs = data.runs;
@@ -595,6 +650,21 @@ function getScoringSummary(quiz) {
   }
   return "No explicit outcomes; defaulting to mostly-letter.";
 }
+
+function setCurrentStep(step) {
+  state.currentStep = step;
+  updateStepVisibility();
+  document.dispatchEvent(new CustomEvent("step:changed"));
+}
+
+function updateStepVisibility() {
+  document.querySelectorAll(".step-panel").forEach((panel) => {
+    const panelStep = Number(panel.dataset.step);
+    panel.classList.toggle("active", panelStep === state.currentStep);
+  });
+}
+
+updateStepVisibility();
 
 function renderQuizPreview(quiz) {
   const questions = quiz.questions || [];

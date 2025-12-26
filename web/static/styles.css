@@ -94,6 +94,43 @@ h1 {
   gap: 20px;
 }
 
+.stepper {
+  display: grid;
+  gap: 12px;
+}
+
+.stepper-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stepper button {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.stepper button.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+
+.step-panel {
+  display: none;
+}
+
+.step-panel.active {
+  display: grid;
+}
+
+.step-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);

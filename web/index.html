@@ -28,20 +28,23 @@
         </div>
       </header>
 
-      <section class="workspace">
-        <div class="stack">
-          <quiz-uploader></quiz-uploader>
-          <quiz-library></quiz-library>
-          <run-creator></run-creator>
-        </div>
-        <div class="stack">
-          <model-picker></model-picker>
-          <run-list></run-list>
-        </div>
-      </section>
+      <stepper-nav></stepper-nav>
 
-      <section class="grid">
-        <run-results></run-results>
+      <section class="workspace">
+        <div class="stack step-panel" data-step="1">
+          <quiz-uploader></quiz-uploader>
+        </div>
+        <div class="stack step-panel" data-step="2">
+          <quiz-library></quiz-library>
+        </div>
+        <div class="stack step-panel" data-step="3">
+          <model-picker></model-picker>
+        </div>
+        <div class="stack step-panel" data-step="4">
+          <run-creator></run-creator>
+          <run-list></run-list>
+          <run-results></run-results>
+        </div>
       </section>
     </main>
   </body>
