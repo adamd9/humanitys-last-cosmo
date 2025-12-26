@@ -44,8 +44,9 @@ def render_questions_and_answers(quiz_def: dict) -> str:
     for i, question in enumerate(quiz_def["questions"], 1):
         qid = question.get("id", f"q{i}")
         qtext = question.get("text", "")
-        
-        lines.append(f"**{qid.upper()}: {qtext}**")
+        qid_label = str(qid).upper()
+
+        lines.append(f"**{qid_label}: {qtext}**")
         lines.append("")
         
         # List all possible answers
@@ -73,16 +74,19 @@ def render_ai_reasoning_section(df: pd.DataFrame, quiz_def: dict) -> str:
     question_options: dict = {}
     if quiz_def and "questions" in quiz_def:
         for q in quiz_def["questions"]:
-            qid = q.get("id", "")
+            qid = str(q.get("id", ""))
             question_texts[qid] = q.get("text", "")
 
             # Build a mapping of answer choice id to its text for each question
             opts = q.get("options", []) or []
-            question_options[qid] = {opt.get("id", ""): opt.get("text", "") for opt in opts}
+            question_options[qid] = {
+                str(opt.get("id", "")): opt.get("text", "") for opt in opts
+            }
     
     # Group by question and show reasoning for each model
     for qid, group in df.groupby("question_id"):
-        question_text = question_texts.get(qid, qid)
+        qid_key = str(qid)
+        question_text = question_texts.get(qid_key, qid_key)
         lines.append(f"### {question_text}")
         lines.append("")
         
@@ -90,7 +94,7 @@ def render_ai_reasoning_section(df: pd.DataFrame, quiz_def: dict) -> str:
             model_id = row.get("model_id", "")
             choice = row.get("choice", "")
             # Lookup the text associated with the chosen option, if available
-            option_text = question_options.get(qid, {}).get(choice, "")
+            option_text = question_options.get(qid_key, {}).get(str(choice), "")
             reason = row.get("reason", "")
             additional_thoughts = row.get("additional_thoughts", "")
 
