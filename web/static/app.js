@@ -1,8 +1,11 @@
 const state = {
   quiz: null,
   quizYaml: null,
+  quizRawPayload: null,
   quizzes: [],
   previewQuiz: null,
+  previewQuizYaml: null,
+  previewRawPayload: null,
   models: [],
   groups: {},
   selectedModels: new Set(),
@@ -55,6 +58,7 @@ class QuizUploader extends HTMLElement {
       const data = await fetchJSON("/api/quizzes/parse", { method: "POST", body, headers });
       state.quiz = data.quiz;
       state.quizYaml = data.quiz_yaml;
+      state.quizRawPayload = data.raw_payload || null;
       status.textContent = `Parsed quiz: ${state.quiz.id} (saved to library)`;
       this.render();
       await refreshQuizzes();
@@ -130,7 +134,8 @@ class QuizLibrary extends HTMLElement {
     try {
       const data = await fetchJSON(`/api/quizzes/${quizId}`);
       state.quiz = data.quiz;
-      state.quizYaml = null;
+      state.quizYaml = data.quiz_yaml || null;
+      state.quizRawPayload = data.raw_payload || null;
       status.textContent = `Loaded quiz: ${quizId}`;
       document.dispatchEvent(new CustomEvent("quiz:updated"));
     } catch (err) {
@@ -144,7 +149,36 @@ class QuizLibrary extends HTMLElement {
     try {
       const data = await fetchJSON(`/api/quizzes/${quizId}`);
       state.previewQuiz = data.quiz;
+      state.previewQuizYaml = data.quiz_yaml || null;
+      state.previewRawPayload = data.raw_payload || null;
       status.textContent = `Previewing: ${quizId}`;
+      this.render();
+    } catch (err) {
+      status.textContent = `Error: ${err.message}`;
+    }
+  }
+
+  async reprocessQuiz(quizId) {
+    const status = this.querySelector(".status");
+    status.textContent = "Reprocessing quiz...";
+    try {
+      const body = new FormData();
+      body.append("model", "gpt-4o");
+      const data = await fetchJSON(`/api/quizzes/${quizId}/reprocess`, {
+        method: "POST",
+        body,
+      });
+      state.previewQuiz = data.quiz;
+      state.previewQuizYaml = data.quiz_yaml || null;
+      state.previewRawPayload = data.raw_payload || null;
+      if (state.quiz?.id === quizId) {
+        state.quiz = data.quiz;
+        state.quizYaml = data.quiz_yaml || null;
+        state.quizRawPayload = data.raw_payload || null;
+        document.dispatchEvent(new CustomEvent("quiz:updated"));
+      }
+      status.textContent = `Reprocessed: ${quizId}`;
+      await refreshQuizzes();
       this.render();
     } catch (err) {
       status.textContent = `Error: ${err.message}`;
@@ -161,11 +195,12 @@ class QuizLibrary extends HTMLElement {
     const items = quizzes
       .map((quiz) => {
         const isActive = state.quiz?.id === quiz.quiz_id;
+        const rawBadge = quiz.raw_available ? '<span class="tag">raw stored</span>' : "";
         return `
         <div class="list-item">
           <div>
             <strong>${quiz.title || quiz.quiz_id}</strong>
-            <div class="status">ID: ${quiz.quiz_id}</div>
+            <div class="status">ID: ${quiz.quiz_id} ${rawBadge}</div>
             <div class="status">Source: ${quiz.source?.source || "unknown"}</div>
           </div>
           <div class="actions">
@@ -186,9 +221,15 @@ class QuizLibrary extends HTMLElement {
               <h3>${state.previewQuiz.title || state.previewQuiz.id}</h3>
               <div class="panel-subtitle">Quiz preview</div>
             </div>
-            <button class="secondary" data-clear-preview>Clear</button>
+            <div class="actions">
+              ${state.previewRawPayload ? `<button class="secondary" data-reprocess="${state.previewQuiz.id}">Reprocess from raw</button>` : ""}
+              <button class="secondary" data-clear-preview>Clear</button>
+            </div>
           </div>
-          ${renderQuizPreview(state.previewQuiz)}
+          ${renderQuizPreview(state.previewQuiz, {
+            quizYaml: state.previewQuizYaml,
+            rawPayload: state.previewRawPayload,
+          })}
         </div>
       `
       : "";
@@ -223,8 +264,13 @@ class QuizLibrary extends HTMLElement {
     this.querySelectorAll("button[data-preview]").forEach((btn) => {
       btn.addEventListener("click", () => this.previewQuiz(btn.dataset.preview));
     });
+    this.querySelectorAll("button[data-reprocess]").forEach((btn) => {
+      btn.addEventListener("click", () => this.reprocessQuiz(btn.dataset.reprocess));
+    });
     this.querySelector("button[data-clear-preview]")?.addEventListener("click", () => {
       state.previewQuiz = null;
+      state.previewQuizYaml = null;
+      state.previewRawPayload = null;
       this.render();
     });
     this.querySelector("button[data-next]")?.addEventListener("click", () => {
@@ -666,13 +712,35 @@ function updateStepVisibility() {
 
 updateStepVisibility();
 
-function renderQuizPreview(quiz) {
+function formatOutcomeCondition(condition = {}) {
+  if (condition.mostly) return `Mostly ${condition.mostly}`;
+  if (condition.mostlyTag) return `Mostly tag: ${condition.mostlyTag}`;
+  if (condition.scoreRange)
+    return `Score ${condition.scoreRange.min}-${condition.scoreRange.max}`;
+  return "Always";
+}
+
+function formatOptionDetails(option = {}) {
+  const details = [];
+  if (Array.isArray(option.tags) && option.tags.length) {
+    details.push(`tags: ${option.tags.join(", ")}`);
+  }
+  if (typeof option.score === "number") {
+    details.push(`score: ${option.score}`);
+  }
+  return details.length ? ` <span class="status">(${details.join(" · ")})</span>` : "";
+}
+
+function renderQuizPreview(quiz, { quizYaml = null, rawPayload = null } = {}) {
   const questions = quiz.questions || [];
   const items = questions
     .map((question, index) => {
       const qid = question.id || `q${index + 1}`;
       const options = (question.options || [])
-        .map((opt) => `<li><strong>${opt.id || ""}</strong> ${opt.text || ""}</li>`)
+        .map(
+          (opt) =>
+            `<li><strong>${opt.id || ""}</strong> ${opt.text || ""}${formatOptionDetails(opt)}</li>`
+        )
         .join("");
       return `
         <div class="preview-item">
@@ -682,8 +750,55 @@ function renderQuizPreview(quiz) {
       `;
     })
     .join("");
+
+  const outcomes = (quiz.outcomes || [])
+    .map(
+      (outcome) => `
+        <li>
+          <strong>${outcome.id || outcome.text || "Outcome"}</strong>
+          <div class="status">${formatOutcomeCondition(outcome.condition)}</div>
+          <div>${outcome.text || outcome.result || ""}</div>
+        </li>
+      `
+    )
+    .join("");
+
+  const yamlBlock = quizYaml
+    ? `
+      <details class="yaml-preview">
+        <summary>View YAML</summary>
+        <pre class="preview">${quizYaml}</pre>
+      </details>
+    `
+    : "";
+
+  const metaRows = [
+    ["Quiz ID", quiz.id || ""],
+    ["Type", getQuizType(quiz)],
+    ["Scoring", getScoringSummary(quiz)],
+    ["Notes", quiz.notes || "—"],
+    ["Raw backup", rawPayload ? `${rawPayload.type || "stored"}` : "Not stored"],
+  ]
+    .map(
+      ([label, value]) => `
+        <div>
+          <div class="label">${label}</div>
+          <div>${value || "—"}</div>
+        </div>
+      `
+    )
+    .join("");
+
   return `
-    <div class="status">Questions: ${questions.length || 0}</div>
-    <div class="preview-list">${items || "<div class='status'>No questions.</div>"}</div>
+    <div class="meta-grid">${metaRows}</div>
+    <div class="preview-subsection">
+      <h4>Questions (${questions.length || 0})</h4>
+      <div class="preview-list">${items || "<div class='status'>No questions.</div>"}</div>
+    </div>
+    <div class="preview-subsection">
+      <h4>Outcomes & scoring</h4>
+      <ul class="outcome-list">${outcomes || "<li class='status'>No outcomes defined.</li>"}</ul>
+    </div>
+    ${yamlBlock}
   `;
 }

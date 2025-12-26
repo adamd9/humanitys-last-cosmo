@@ -18,7 +18,7 @@ from ..core.runner import run_sync
 from ..core.sqlite_store import (
     connect,
     fetch_assets,
-    fetch_quiz_def,
+    fetch_quiz_record,
     fetch_quiz_yaml,
     fetch_quizzes,
     fetch_results,
@@ -148,11 +148,15 @@ def list_quizzes() -> dict:
 def get_quiz(quiz_id: str) -> dict:
     runtime_paths = get_runtime_paths()
     conn = connect(runtime_paths.db_path)
-    quiz_def = fetch_quiz_def(conn, quiz_id)
+    record = fetch_quiz_record(conn, quiz_id)
     conn.close()
-    if not quiz_def:
+    if not record:
         raise HTTPException(status_code=404, detail="Quiz not found")
-    return {"quiz": quiz_def}
+    return {
+        "quiz": record["quiz"],
+        "quiz_yaml": record["quiz_yaml"],
+        "raw_payload": record.get("raw_payload"),
+    }
 
 
 @app.post("/api/quizzes/parse")
@@ -169,11 +173,19 @@ async def parse_quiz(
     image_bytes = None
     image_mime = None
     text_input = text
+    raw_payload = {}
     if file is not None:
         upload_path = await _save_upload(file, runtime_paths.uploads_dir)
         image_bytes = upload_path.read_bytes()
         image_mime = file.content_type or "image/png"
         text_input = None
+        raw_payload = {
+            "type": "image",
+            "path": str(upload_path),
+            "mime": image_mime,
+        }
+    elif text_input:
+        raw_payload = {"type": "text", "text": text_input}
 
     yaml_text = convert_to_yaml(
         text=text_input,
@@ -191,9 +203,64 @@ async def parse_quiz(
         raise HTTPException(status_code=400, detail="Invalid quiz YAML returned")
 
     conn = connect(runtime_paths.db_path)
-    upsert_quiz(conn, quiz_def, yaml_text)
+    upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
     conn.close()
-    return {"quiz": quiz_def, "quiz_yaml": yaml_text}
+    return {"quiz": quiz_def, "quiz_yaml": yaml_text, "raw_payload": raw_payload}
+
+
+@app.post("/api/quizzes/{quiz_id}/reprocess")
+async def reprocess_quiz(
+    quiz_id: str,
+    model: str = Form("gpt-4o"),
+) -> dict:
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    record = fetch_quiz_record(conn, quiz_id)
+    conn.close()
+    if not record:
+        raise HTTPException(status_code=404, detail="Quiz not found")
+
+    raw_payload = record.get("raw_payload") or {}
+    if not raw_payload:
+        raise HTTPException(status_code=400, detail="Quiz is missing raw input data")
+
+    yaml_text = None
+    image_bytes = None
+    image_mime = None
+    text_input = None
+    if raw_payload.get("type") == "text":
+        text_input = raw_payload.get("text")
+    elif raw_payload.get("type") == "image":
+        image_path = Path(raw_payload.get("path", ""))
+        image_mime = raw_payload.get("mime") or "image/png"
+        if not image_path.exists():
+            raise HTTPException(
+                status_code=500,
+                detail="Stored raw image is missing; cannot reprocess",
+            )
+        image_bytes = image_path.read_bytes()
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported raw input type")
+
+    yaml_text = convert_to_yaml(
+        text=text_input,
+        image_bytes=image_bytes,
+        image_mime=image_mime,
+        model=model,
+    )
+    yaml_text = _strip_fenced_yaml(yaml_text)
+    try:
+        quiz_def = yaml.safe_load(yaml_text)
+    except yaml.YAMLError:
+        yaml_text = _sanitize_yaml(yaml_text)
+        quiz_def = yaml.safe_load(yaml_text)
+    if not quiz_def or "id" not in quiz_def:
+        raise HTTPException(status_code=400, detail="Invalid quiz YAML returned")
+
+    conn = connect(runtime_paths.db_path)
+    upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
+    conn.close()
+    return {"quiz": quiz_def, "quiz_yaml": yaml_text, "raw_payload": raw_payload}
 
 
 @app.post("/api/runs")
