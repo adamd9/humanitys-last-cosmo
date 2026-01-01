@@ -24,6 +24,7 @@ export const state = {
   runLog: "",
   runLogExists: false,
   runError: null,
+  reanalysisInProgress: false,
   currentStep: 0,
 };
 

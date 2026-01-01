@@ -12,7 +12,7 @@ class RunCreator extends HTMLElement {
 
   async createRun() {
     const status = this.querySelector(".status");
-    const quizId = state.quiz?.id;
+    const quizId = String(state.quiz?.id ?? "");
     if (!quizId) {
       status.textContent = "Load a quiz first.";
       return;

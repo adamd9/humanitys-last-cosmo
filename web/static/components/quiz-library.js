@@ -6,6 +6,7 @@ class QuizLibrary extends HTMLElement {
   constructor() {
     super();
     this.filterText = "";
+    this.statusMessage = "";
   }
 
   connectedCallback() {
@@ -20,21 +21,28 @@ class QuizLibrary extends HTMLElement {
     this.render();
   }
 
+  setStatus(message) {
+    this.statusMessage = message;
+    const status = this.querySelector("[data-status]");
+    if (status) {
+      status.textContent = message;
+    }
+  }
+
   async selectQuiz(quizId) {
-    const status = this.querySelector(".status");
-    status.textContent = "Loading quiz...";
+    this.setStatus("Loading quiz...");
     try {
       await loadQuiz(quizId);
-      status.textContent = `Loaded quiz: ${quizId}`;
+      this.setStatus(`Loaded quiz: ${quizId}`);
       document.dispatchEvent(new CustomEvent("quiz:updated"));
+      this.render();
     } catch (err) {
-      status.textContent = `Error: ${err.message}`;
+      this.setStatus(`Error: ${err.message}`);
     }
   }
 
   async previewQuiz(quizId) {
-    const status = this.querySelector(".status");
-    status.textContent = "Loading preview...";
+    this.setStatus("Loading preview...");
     try {
       const data = await fetchJSON(`/api/quizzes/${quizId}`);
       state.previewQuiz = data.quiz;
@@ -42,16 +50,15 @@ class QuizLibrary extends HTMLElement {
       state.previewRawPayload = data.raw_payload || null;
       state.previewRawPreview = data.raw_preview || null;
       state.previewQuizMeta = data.quiz_meta || null;
-      status.textContent = `Previewing: ${quizId}`;
+      this.setStatus(`Previewing: ${quizId}`);
       this.render();
     } catch (err) {
-      status.textContent = `Error: ${err.message}`;
+      this.setStatus(`Error: ${err.message}`);
     }
   }
 
   async reprocessQuiz(quizId) {
-    const status = this.querySelector(".status");
-    status.textContent = "Reprocessing quiz...";
+    this.setStatus("Reprocessing quiz...");
     try {
       const body = new FormData();
       body.append("model", "gpt-4o");
@@ -72,22 +79,21 @@ class QuizLibrary extends HTMLElement {
         state.quizMeta = data.quiz_meta || null;
         document.dispatchEvent(new CustomEvent("quiz:updated"));
       }
-      status.textContent = `Reprocessed: ${quizId}`;
+      this.setStatus(`Reprocessed: ${quizId}`);
       await refreshQuizzes();
       this.render();
     } catch (err) {
-      status.textContent = `Error: ${err.message}`;
+      this.setStatus(`Error: ${err.message}`);
     }
   }
 
   async deleteQuiz(quizId) {
-    const status = this.querySelector(".status");
     const confirmDelete = confirm(
       "Delete this quiz and any related runs? This action cannot be undone."
     );
     if (!confirmDelete) return;
 
-    status.textContent = "Deleting quiz...";
+    this.setStatus("Deleting quiz...");
     try {
       await fetchJSON(`/api/quizzes/${quizId}`, { method: "DELETE" });
 
@@ -107,17 +113,18 @@ class QuizLibrary extends HTMLElement {
         state.previewQuizMeta = null;
       }
 
-      status.textContent = `Deleted quiz: ${quizId}`;
+      this.setStatus(`Deleted quiz: ${quizId}`);
       await refreshQuizzes();
       document.dispatchEvent(new CustomEvent("quiz:updated"));
       this.render();
     } catch (err) {
-      status.textContent = `Error: ${err.message}`;
+      this.setStatus(`Error: ${err.message}`);
     }
   }
 
   render() {
     const filter = this.filterText;
+    const activeQuizId = String(state.quiz?.id ?? state.quiz?.quiz_id ?? "");
     const quizzes = state.quizzes.filter((quiz) => {
       if (!filter) return true;
       const haystack = `${quiz.quiz_id} ${quiz.title || ""}`.toLowerCase();
@@ -125,11 +132,11 @@ class QuizLibrary extends HTMLElement {
     });
     const items = quizzes
       .map((quiz) => {
-        const isActive = state.quiz?.id === quiz.quiz_id;
+        const isActive = activeQuizId === quiz.quiz_id;
         const rawBadge = quiz.raw_available ? '<span class="tag">raw stored</span>' : "";
         const uploadedAt = formatDate(quiz.created_at) || "unknown";
         return `
-        <div class="list-item">
+        <div class="list-item ${isActive ? "active" : ""}">
           <div>
             <strong>${quiz.title || quiz.quiz_id}</strong>
             <div class="status">ID: ${quiz.quiz_id} ${rawBadge}</div>
@@ -169,6 +176,10 @@ class QuizLibrary extends HTMLElement {
         </div>
       `
       : "";
+    const hasPreview = Boolean(state.previewQuiz);
+    const statusMessage = this.statusMessage
+      ? `<div class="status" data-status>${this.statusMessage}</div>`
+      : "";
     this.innerHTML = `
       <div class="panel">
         <div class="panel-header">
@@ -181,11 +192,20 @@ class QuizLibrary extends HTMLElement {
         <div class="toolbar">
           <input type="text" placeholder="Search quizzes..." value="${this.filterText}" />
         </div>
-        <div class="list scroll">
-          ${items || "<div class='status'>No saved quizzes yet.</div>"}
+        <div class="quiz-library-layout ${hasPreview ? "has-preview" : ""}">
+          <div class="quiz-library-panel picker">
+            <div class="list scroll">
+              ${items || "<div class='status'>No saved quizzes yet.</div>"}
+            </div>
+          </div>
+          ${
+            hasPreview
+              ? `<div class="quiz-library-panel viewer">${preview}</div>`
+              : ""
+          }
         </div>
-        ${preview}
-        <div class="status">Active quiz: ${state.quiz?.id || "none"}</div>
+        ${statusMessage}
+        <div class="status">Active quiz: ${activeQuizId || "none"}</div>
         <div class="actions">
           <button class="secondary" data-next>Next</button>
         </div>

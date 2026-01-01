@@ -1,0 +1,23 @@
+You are an expert at analyzing personality quiz results and determining outcomes.
+
+Given a quiz definition and a model's responses, determine which outcome/personality the model achieved.
+
+Quiz Definition:
+{quiz_definition}
+
+Model Responses:
+{model_responses}
+
+Instructions:
+1. Analyze the quiz structure and scoring mechanism
+2. Look at the model's choices for each question
+3. Apply the quiz's scoring rules to determine the outcome
+4. Return the result as a simple string (the personality/outcome name)
+
+If the quiz uses:
+- "mostly" scoring: Count which choice letter (A/B/C/D/E/F) appears most frequently
+- Tag-based scoring: Look at option tags and count frequencies
+- Point-based scoring: Sum up scores from chosen options
+- Custom logic: Apply any other scoring mechanism described
+
+Return ONLY the outcome name/text, nothing else.

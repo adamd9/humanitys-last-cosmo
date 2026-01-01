@@ -180,7 +180,7 @@ def quiz_demo() -> None:
 
 
 @app.command("quiz:convert")
-def quiz_convert(text_file: Path, model: str = "gpt-4o") -> None:
+def quiz_convert(text_file: Path, model: str | None = None) -> None:
     """Convert a raw quiz text file to YAML using OpenAI."""
     text = text_file.read_text(encoding="utf-8")
     yaml_text = text_to_yaml(text, model=model)

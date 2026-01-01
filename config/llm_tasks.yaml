@@ -1,0 +1,11 @@
+# Task-specific LLM defaults used for scoring, summaries, and quiz conversion.
+llm_tasks:
+  quiz_scoring:
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+  summary_generation:
+    model: gpt-4o-mini
+    api_key_env: OPENAI_API_KEY
+  quiz_conversion:
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY

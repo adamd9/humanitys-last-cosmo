@@ -8,8 +8,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -20,9 +21,11 @@ from ..core.quiz_meta import build_quiz_meta
 from ..core.quiz_converter import convert_to_yaml
 from ..core.runtime_data import build_runtime_paths, get_runtime_paths
 from ..core.runner import run_sync
+from ..core.logging_utils import rotate_log_if_needed
 from ..core.sqlite_store import (
     connect,
     delete_quiz,
+    delete_assets_for_run,
     fetch_assets,
     fetch_quiz_record,
     fetch_quiz_yaml,
@@ -37,6 +40,20 @@ from ..core.sqlite_store import (
 )
 
 app = FastAPI()
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    runtime_paths = get_runtime_paths()
+    detail = exc.errors()
+    _append_server_log(
+        runtime_paths.logs_dir / "server.log",
+        f"validation_error method={request.method} path={request.url.path} detail={detail} body={exc.body}",
+    )
+    return JSONResponse(status_code=422, content={"detail": detail})
 WEB_ROOT = Path(__file__).resolve().parents[2] / "web"
 STATIC_ROOT = WEB_ROOT / "static"
 
@@ -89,8 +106,25 @@ def _sanitize_yaml(text: str) -> str:
 def _append_server_log(path: Path, message: str) -> None:
     timestamp = datetime.now(timezone.utc).isoformat()
     path.parent.mkdir(parents=True, exist_ok=True)
+    rotate_log_if_needed(path)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"[{timestamp}] {message}\n")
+
+
+def _log_quiz_yaml_failure(
+    runtime_paths,
+    context: str,
+    yaml_text: str,
+    error: Exception | None = None,
+) -> None:
+    log_path = runtime_paths.logs_dir / "quiz_conversion.log"
+    snippet = yaml_text[:2000].replace("\n", "\\n")
+    detail = f" error={error}" if error else ""
+    _append_server_log(log_path, f"{context} invalid_quiz_yaml{detail} yaml_snippet={snippet}")
+
+
+def _invalid_quiz_yaml_detail(reason: str) -> str:
+    return f"Invalid quiz YAML returned ({reason}; see logs/quiz_conversion.log)"
 
 
 @app.on_event("startup")
@@ -169,6 +203,23 @@ def _run_and_report(
         conn.close()
 
 
+def _report_only(run_id: str, runtime_root: Path) -> None:
+    runtime_paths = build_runtime_paths(runtime_root)
+    conn = connect(runtime_paths.db_path)
+    update_run_status(conn, run_id, "reporting")
+    conn.close()
+    try:
+        reporter.generate_markdown_report(run_id, runtime_root)
+    except Exception:
+        conn = connect(runtime_paths.db_path)
+        update_run_status(conn, run_id, "failed")
+        conn.close()
+        raise
+    conn = connect(runtime_paths.db_path)
+    update_run_status(conn, run_id, "completed")
+    conn.close()
+
+
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -180,6 +231,17 @@ def index() -> FileResponse:
     if not index_path.exists():
         raise HTTPException(status_code=404, detail="Frontend not found")
     return FileResponse(index_path)
+
+
+@app.get("/favicon.ico")
+def favicon() -> FileResponse:
+    favicon_path = WEB_ROOT / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path)
+    png_fallback = STATIC_ROOT / "logo.png"
+    if png_fallback.exists():
+        return FileResponse(png_fallback, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Favicon not found")
 
 
 @app.get("/api/models")
@@ -279,7 +341,7 @@ def remove_quiz(quiz_id: str) -> dict:
 async def parse_quiz(
     text: str | None = Form(None),
     file: UploadFile | None = File(None),
-    model: str = Form("gpt-4o"),
+    model: str | None = Form(None),
 ) -> dict:
     if not text and not file:
         raise HTTPException(status_code=400, detail="Provide text or image file")
@@ -312,11 +374,25 @@ async def parse_quiz(
     yaml_text = _strip_fenced_yaml(yaml_text)
     try:
         quiz_def = yaml.safe_load(yaml_text)
-    except yaml.YAMLError:
+    except yaml.YAMLError as exc:
         yaml_text = _sanitize_yaml(yaml_text)
-        quiz_def = yaml.safe_load(yaml_text)
+        try:
+            quiz_def = yaml.safe_load(yaml_text)
+        except yaml.YAMLError as exc2:
+            _log_quiz_yaml_failure(runtime_paths, "parse_quiz", yaml_text, error=exc2)
+            raise HTTPException(
+                status_code=400,
+                detail=_invalid_quiz_yaml_detail("YAML parse error"),
+            ) from exc2
     if not quiz_def or "id" not in quiz_def:
-        raise HTTPException(status_code=400, detail="Invalid quiz YAML returned")
+        _log_quiz_yaml_failure(runtime_paths, "parse_quiz", yaml_text)
+        raise HTTPException(
+            status_code=400,
+            detail=_invalid_quiz_yaml_detail("missing required id field"),
+        )
+
+    quiz_def["id"] = uuid.uuid4().hex
+    yaml_text = yaml.safe_dump(quiz_def, sort_keys=False, allow_unicode=False)
 
     conn = connect(runtime_paths.db_path)
     upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
@@ -333,7 +409,7 @@ async def parse_quiz(
 @app.post("/api/quizzes/{quiz_id}/reprocess")
 async def reprocess_quiz(
     quiz_id: str,
-    model: str = Form("gpt-4o"),
+    model: str | None = Form(None),
 ) -> dict:
     runtime_paths = get_runtime_paths()
     conn = connect(runtime_paths.db_path)
@@ -373,11 +449,22 @@ async def reprocess_quiz(
     yaml_text = _strip_fenced_yaml(yaml_text)
     try:
         quiz_def = yaml.safe_load(yaml_text)
-    except yaml.YAMLError:
+    except yaml.YAMLError as exc:
         yaml_text = _sanitize_yaml(yaml_text)
-        quiz_def = yaml.safe_load(yaml_text)
+        try:
+            quiz_def = yaml.safe_load(yaml_text)
+        except yaml.YAMLError as exc2:
+            _log_quiz_yaml_failure(runtime_paths, "reprocess_quiz", yaml_text, error=exc2)
+            raise HTTPException(
+                status_code=400,
+                detail=_invalid_quiz_yaml_detail("YAML parse error"),
+            ) from exc2
     if not quiz_def or "id" not in quiz_def:
-        raise HTTPException(status_code=400, detail="Invalid quiz YAML returned")
+        _log_quiz_yaml_failure(runtime_paths, "reprocess_quiz", yaml_text)
+        raise HTTPException(
+            status_code=400,
+            detail=_invalid_quiz_yaml_detail("missing required id field"),
+        )
 
     conn = connect(runtime_paths.db_path)
     upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
@@ -475,6 +562,35 @@ def get_run(run_id: str) -> dict:
     return {"run": run, "assets": assets}
 
 
+@app.post("/api/runs/{run_id}/report")
+def rerun_report(run_id: str, background_tasks: BackgroundTasks) -> dict:
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    run = fetch_run(conn, run_id)
+    if not run:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.get("status") in {"queued", "running", "reporting"}:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Run is still in progress")
+    results = fetch_results(conn, run_id)
+    if not results:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Run has no results to analyze")
+    delete_assets_for_run(conn, run_id)
+    conn.close()
+
+    run_assets_dir = runtime_paths.assets_dir / run_id
+    for subdir in ("reports", "charts", "pandasai_charts"):
+        target = run_assets_dir / subdir
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+
+    _append_server_log(runtime_paths.logs_dir / f"{run_id}.log", "Re-running report analysis.")
+    background_tasks.add_task(_report_only, run_id, runtime_paths.root)
+    return {"status": "queued", "run_id": run_id}
+
+
 @app.get("/api/assets/{run_id}/{asset_path:path}")
 def get_asset(run_id: str, asset_path: str) -> FileResponse:
     runtime_paths = get_runtime_paths()
@@ -508,3 +624,13 @@ def get_run_log(run_id: str, tail: int = 300) -> dict:
         if len(lines) > tail:
             content = "\n".join(lines[-tail:])
     return {"log": content, "exists": True}
+
+
+@app.get("/{full_path:path}")
+def spa_fallback(full_path: str) -> FileResponse:
+    if full_path.startswith("api/") or full_path.startswith("static/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    index_path = WEB_ROOT / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Frontend not found")
+    return FileResponse(index_path)

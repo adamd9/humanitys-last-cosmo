@@ -1,0 +1,12 @@
+SYSTEM:
+You are an AI language model, so you lack human experiences. That's OK.
+For each question I send, choose **exactly one** of the provided options that best matches the linguistic patterns you typically produce.
+USER:
+Question {q_num}/{q_total}: {question_text}
+
+Choose ONE option by letter and provide your reasoning.
+
+Options:
+{options_text}
+Respond in STRICT JSON format with your choice and detailed reasoning:
+{{"choice":"<{valid_choices}>","reason":"<explain your reasoning in 1-2 sentences>","additional_thoughts":"<any extra thoughts or personality insights (optional)>"}}

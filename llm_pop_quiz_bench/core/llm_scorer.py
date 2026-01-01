@@ -8,68 +8,21 @@ import httpx
 import openai
 from dotenv import load_dotenv
 
+from .llm_task_config import llm_task_config
+from .prompt_loader import load_prompt
+
 # Load environment variables
 load_dotenv()
 
-SCORING_PROMPT = """You are an expert at analyzing personality quiz results and determining outcomes.
-
-Given a quiz definition and a model's responses, determine which outcome/personality the model achieved.
-
-Quiz Definition:
-{quiz_definition}
-
-Model Responses:
-{model_responses}
-
-Instructions:
-1. Analyze the quiz structure and scoring mechanism
-2. Look at the model's choices for each question
-3. Apply the quiz's scoring rules to determine the outcome
-4. Return the result as a simple string (the personality/outcome name)
-
-If the quiz uses:
-- "mostly" scoring: Count which choice letter (A/B/C/D/E/F) appears most frequently
-- Tag-based scoring: Look at option tags and count frequencies
-- Point-based scoring: Sum up scores from chosen options
-- Custom logic: Apply any other scoring mechanism described
-
-Return ONLY the outcome name/text, nothing else."""
-
-SUMMARY_PROMPT = """You are an expert analyst specializing in AI model behavior and personality assessment. Your task is to create an engaging, insightful summary of quiz results where multiple AI models took a personality quiz.
-
-Quiz Information:
-{quiz_definition}
-
-Model Results:
-{model_results}
-
-Affinity Scores (if available):
-{affinity_scores}
-
-Instructions:
-1. Analyze the quiz type, questions, and possible outcomes
-2. Compare and contrast how different AI models responded
-3. Identify interesting patterns, agreements, and disagreements
-4. Provide insights into what the results might reveal about each model's "personality"
-5. Keep the tone engaging, fun, and insightful (but not overly silly)
-6. Use markdown formatting for structure
-7. Include specific examples from the data
-8. Avoid making claims about actual AI consciousness or emotions
-
-Generate a comprehensive summary section that would fit well in a research report. Focus on:
-- Key findings and patterns
-- Notable differences between models
-- Interesting insights about the quiz responses
-- What this might tell us about AI model behavior
-
-Return your analysis as a well-formatted markdown section."""
+SCORING_PROMPT = load_prompt("quiz_scoring")
+SUMMARY_PROMPT = load_prompt("summary_generation")
 
 
 def score_quiz_with_llm(
     quiz_def: dict,
     model_responses: List[Dict[str, Any]],
-    model_name: str = "gpt-4o",
-    api_key_env: str = "OPENAI_API_KEY"
+    model_name: str | None = None,
+    api_key_env: str | None = None,
 ) -> str:
     """
     Use an LLM to intelligently score a quiz and determine the outcome.
@@ -83,6 +36,10 @@ def score_quiz_with_llm(
     Returns:
         The determined outcome/personality as a string
     """
+    task_config = llm_task_config.get_task("quiz_scoring")
+    model_name = model_name or task_config.get("model", "gpt-4o")
+    api_key_env = api_key_env or task_config.get("api_key_env", "OPENAI_API_KEY")
+
     api_key = os.environ.get(api_key_env)
     if not api_key:
         # Fallback to empty result if no API key
@@ -127,7 +84,7 @@ def generate_summary_with_llm(
     quiz_def: dict,
     model_results: dict,
     affinity_scores: dict = None,
-    model_name: str = "gpt-4o-mini"
+    model_name: str | None = None,
 ) -> str:
     """
     Generate an engaging summary of quiz results using an LLM.
@@ -141,7 +98,11 @@ def generate_summary_with_llm(
     Returns:
         Generated markdown summary text
     """
-    api_key = os.environ.get("OPENAI_API_KEY")
+    task_config = llm_task_config.get_task("summary_generation")
+    model_name = model_name or task_config.get("model", "gpt-4o-mini")
+    api_key_env = task_config.get("api_key_env", "OPENAI_API_KEY")
+
+    api_key = os.environ.get(api_key_env)
     if not api_key:
         return "**Summary Generation Unavailable**\n\nOpenAI API key not configured."
     

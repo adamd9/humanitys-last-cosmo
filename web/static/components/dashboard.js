@@ -1,4 +1,4 @@
-import { loadRunDetails, refreshRuns, selectRun } from "../api.js";
+import { loadRunDetails, refreshRuns, rerunReport, selectRun } from "../api.js";
 import { state, setCurrentStep } from "../state.js";
 import { buildAssetGroups, buildExpectedAssetTypes, escapeHtml, formatDate } from "../utils.js";
 
@@ -99,6 +99,10 @@ class RunPanel extends HTMLElement {
     const assetGroups = buildAssetGroups(expectedAssets, state.assets || []);
     const status = runData?.status || "unknown";
     const isActive = status && !["completed", "failed"].includes(status);
+    const hasResults = (state.runResults || []).length > 0;
+    const canRerun = !isActive && hasResults;
+    const rerunDisabled = state.reanalysisInProgress || !canRerun;
+    const rerunLabel = state.reanalysisInProgress ? "Re-running analysis..." : "Re-run analysis";
     const assetRows = assetGroups
       .map((group) => {
         const asset = group.primaryAsset;
@@ -161,6 +165,9 @@ class RunPanel extends HTMLElement {
           <div class="panel-title">
             <h2>Results for ${state.selectedRun}</h2>
           </div>
+          <div class="actions">
+            <button class="secondary" data-rerun-report ${rerunDisabled ? "disabled" : ""}>${rerunLabel}</button>
+          </div>
         </div>
         <div class="status-grid">
           <div class="status status-wrap">Models (${modelCount}): ${modelList}</div>
@@ -178,6 +185,22 @@ class RunPanel extends HTMLElement {
         <run-log></run-log>
       </div>
     `;
+    this.querySelector("button[data-rerun-report]")?.addEventListener("click", async () => {
+      if (rerunDisabled) return;
+      state.reanalysisInProgress = true;
+      state.runError = null;
+      this.render();
+      try {
+        await rerunReport(state.selectedRun);
+        await refreshRuns();
+        await selectRun(state.selectedRun);
+      } catch (err) {
+        state.runError = `Failed to re-run analysis: ${err.message}`;
+      } finally {
+        state.reanalysisInProgress = false;
+        this.render();
+      }
+    });
     this.querySelectorAll("button[data-markdown-url]").forEach((button) => {
       button.addEventListener("click", () => {
         document.dispatchEvent(

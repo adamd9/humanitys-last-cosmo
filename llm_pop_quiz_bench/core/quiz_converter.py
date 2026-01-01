@@ -7,16 +7,13 @@ import httpx
 import openai
 from dotenv import load_dotenv
 
+from .llm_task_config import llm_task_config
+from .prompt_loader import load_prompt
+
 # Load environment variables from .env file
 load_dotenv()
 
-PROMPT = (
-    "You convert magazine-style quizzes to YAML. "
-    "Use keys: id, title, source{publication,url}, notes, questions, outcomes. "
-    "Each question has id, text and options with id, text, optional tags or score."
-    "Outcome conditions may use mostly, mostlyTag or scoreRange. "
-    "Return only valid YAML."
-)
+PROMPT = load_prompt("quiz_conversion")
 
 
 def _get_openai_client(api_key_env: str) -> openai.OpenAI:
@@ -28,7 +25,22 @@ def _get_openai_client(api_key_env: str) -> openai.OpenAI:
     return openai.OpenAI(api_key=api_key, http_client=http_client)
 
 
-def text_to_yaml(text: str, model: str = "gpt-4o", api_key_env: str = "OPENAI_API_KEY") -> str:
+def _get_quiz_conversion_settings(
+    model: str | None,
+    api_key_env: str | None,
+) -> tuple[str, str]:
+    task_config = llm_task_config.get_task("quiz_conversion")
+    resolved_model = model or task_config.get("model", "gpt-4o")
+    resolved_api_env = api_key_env or task_config.get("api_key_env", "OPENAI_API_KEY")
+    return resolved_model, resolved_api_env
+
+
+def text_to_yaml(
+    text: str,
+    model: str | None = None,
+    api_key_env: str | None = None,
+) -> str:
+    model, api_key_env = _get_quiz_conversion_settings(model, api_key_env)
     client = _get_openai_client(api_key_env)
     messages = [
         {"role": "system", "content": PROMPT},
@@ -41,9 +53,10 @@ def text_to_yaml(text: str, model: str = "gpt-4o", api_key_env: str = "OPENAI_AP
 def image_to_yaml(
     image_bytes: bytes,
     image_mime: str,
-    model: str = "gpt-4o",
-    api_key_env: str = "OPENAI_API_KEY",
+    model: str | None = None,
+    api_key_env: str | None = None,
 ) -> str:
+    model, api_key_env = _get_quiz_conversion_settings(model, api_key_env)
     client = _get_openai_client(api_key_env)
     encoded = base64.b64encode(image_bytes).decode("ascii")
     data_url = f"data:{image_mime};base64,{encoded}"
@@ -66,8 +79,8 @@ def convert_to_yaml(
     text: str | None = None,
     image_bytes: bytes | None = None,
     image_mime: str | None = None,
-    model: str = "gpt-4o",
-    api_key_env: str = "OPENAI_API_KEY",
+    model: str | None = None,
+    api_key_env: str | None = None,
 ) -> str:
     if text:
         return text_to_yaml(text, model=model, api_key_env=api_key_env)

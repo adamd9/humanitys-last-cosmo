@@ -62,21 +62,20 @@ models:
     maxConcurrency: 2
 
 model_groups:
-  default:
-    - openai/gpt-4o
-    - anthropic/claude-3.5-sonnet
-    - google/gemini-1.5-pro
+  humanities_last_exam:
+    - google/gemini-3-pro
+    - google/gemini-3-flash
+    - openai/gpt-5.2
+    - openai/gpt-5.1
 
-  openai_comparison:
-    - openai/gpt-4o
-    - openai/gpt-4o-mini
-    - openai/gpt-4-turbo
+  humanities_last_exam_by_provider:
+    - google/gemini-3-pro
+    - openai/gpt-5.2
+    - anthropic/opus-4.5
+    - x-ai/grok-4
 
-  anthropic_comparison:
-    - anthropic/claude-3.5-sonnet
-    - anthropic/claude-3.5-haiku
-    - anthropic/claude-3-opus
-
-  google_comparison:
-    - google/gemini-1.5-pro
-    - google/gemini-1.5-flash
+  humanities_last_exam_next4:
+    - anthropic/opus-4.5
+    - x-ai/grok-4
+    - deepseek/deepseek-3.2
+    - google/gemini-2.5-pro

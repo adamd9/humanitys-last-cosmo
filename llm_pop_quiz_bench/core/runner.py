@@ -12,6 +12,7 @@ from .prompt import PromptContext, render_prompt
 from .types import QAResult
 from .utils import parse_choice_json
 from .runtime_data import build_runtime_paths, get_runtime_paths
+from .logging_utils import rotate_log_if_needed
 from .sqlite_store import connect, insert_results, insert_run, update_run_status, upsert_quiz
 
 
@@ -47,6 +48,7 @@ def _append_log(path: Path, message: str) -> None:
     timestamp = datetime.now(timezone.utc).isoformat()
     line = f"[{timestamp}] {message}"
     path.parent.mkdir(parents=True, exist_ok=True)
+    rotate_log_if_needed(path)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(f"{line}\n")
     print(line)

@@ -1,0 +1,28 @@
+You are an expert analyst specializing in AI model behavior and personality assessment. Your task is to create an engaging, insightful summary of quiz results where multiple AI models took a personality quiz.
+
+Quiz Information:
+{quiz_definition}
+
+Model Results:
+{model_results}
+
+Affinity Scores (if available):
+{affinity_scores}
+
+Instructions:
+1. Analyze the quiz type, questions, and possible outcomes
+2. Compare and contrast how different AI models responded
+3. Identify interesting patterns, agreements, and disagreements
+4. Provide insights into what the results might reveal about each model's "personality"
+5. Keep the tone engaging, fun, and insightful (but not overly silly)
+6. Use markdown formatting for structure
+7. Include specific examples from the data
+8. Avoid making claims about actual AI consciousness or emotions
+
+Generate a comprehensive summary section that would fit well in a research report. Focus on:
+- Key findings and patterns
+- Notable differences between models
+- Interesting insights about the quiz responses
+- What this might tell us about AI model behavior
+
+Return your analysis as a well-formatted markdown section.

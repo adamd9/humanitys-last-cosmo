@@ -277,6 +277,11 @@ def fetch_assets(conn: sqlite3.Connection, run_id: str) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def delete_assets_for_run(conn: sqlite3.Connection, run_id: str) -> None:
+    conn.execute("DELETE FROM assets WHERE run_id = ?", (run_id,))
+    conn.commit()
+
+
 def fetch_quiz_yaml(conn: sqlite3.Connection, quiz_id: str) -> str | None:
     row = conn.execute(
         "SELECT quiz_yaml FROM quizzes WHERE quiz_id = ?",

@@ -121,7 +121,11 @@ class ModelPicker extends HTMLElement {
   }
 
   getFilteredModels() {
+    const groupIds = state.selectedGroup
+      ? new Set(state.groups[state.selectedGroup] || [])
+      : null;
     return state.models.filter((model) => {
+      if (groupIds && !groupIds.has(model.id)) return false;
       if (this.showAvailableOnly && !model.available) return false;
       if (!this.filterText) return true;
       const haystack = `${model.name || ""} ${model.id} ${model.description || ""}`.toLowerCase();

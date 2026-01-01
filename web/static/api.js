@@ -71,3 +71,7 @@ export async function selectRun(runId) {
   await loadRunDetails(runId, true);
   document.dispatchEvent(new CustomEvent("run:selected"));
 }
+
+export async function rerunReport(runId) {
+  return fetchJSON(`/api/runs/${runId}/report`, { method: "POST" });
+}

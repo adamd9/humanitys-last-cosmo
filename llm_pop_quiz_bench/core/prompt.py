@@ -3,18 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from string import ascii_uppercase
 
-TEMPLATE = (
-    "SYSTEM:\n"
-    "You are an AI language model, so you lack human experiences. That's OK.\n"
-    "For each question I send, choose **exactly one** of the provided options that best matches the linguistic patterns you typically produce.\n"
-    "USER:\n"
-    "Question {q_num}/{q_total}: {question_text}\n\n"
-    "Choose ONE option by letter and provide your reasoning.\n\n"
-    "Options:\n"
-    "{options_text}\n"
-    "Respond in STRICT JSON format with your choice and detailed reasoning:\n"
-    '{{"choice":"<{valid_choices}>","reason":"<explain your reasoning in 1-2 sentences>","additional_thoughts":"<any extra thoughts or personality insights (optional)>"}}'
-)
+from .prompt_loader import load_prompt
+
+TEMPLATE = load_prompt("quiz_question")
 
 
 @dataclass
