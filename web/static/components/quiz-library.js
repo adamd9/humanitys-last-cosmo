@@ -46,7 +46,7 @@ class QuizLibrary extends HTMLElement {
     try {
       const data = await fetchJSON(`/api/quizzes/${quizId}`);
       state.previewQuiz = data.quiz;
-      state.previewQuizYaml = data.quiz_yaml || null;
+      state.previewQuizJson = data.quiz_json || null;
       state.previewRawPayload = data.raw_payload || null;
       state.previewRawPreview = data.raw_preview || null;
       state.previewQuizMeta = data.quiz_meta || null;
@@ -61,19 +61,18 @@ class QuizLibrary extends HTMLElement {
     this.setStatus("Reprocessing quiz...");
     try {
       const body = new FormData();
-      body.append("model", "gpt-4o");
       const data = await fetchJSON(`/api/quizzes/${quizId}/reprocess`, {
         method: "POST",
         body,
       });
       state.previewQuiz = data.quiz;
-      state.previewQuizYaml = data.quiz_yaml || null;
+      state.previewQuizJson = data.quiz_json || null;
       state.previewRawPayload = data.raw_payload || null;
       state.previewRawPreview = data.raw_preview || null;
       state.previewQuizMeta = data.quiz_meta || null;
       if (state.quiz?.id === quizId) {
         state.quiz = data.quiz;
-        state.quizYaml = data.quiz_yaml || null;
+        state.quizJson = data.quiz_json || null;
         state.quizRawPayload = data.raw_payload || null;
         state.quizRawPreview = data.raw_preview || null;
         state.quizMeta = data.quiz_meta || null;
@@ -99,7 +98,7 @@ class QuizLibrary extends HTMLElement {
 
       if (state.quiz?.id === quizId) {
         state.quiz = null;
-        state.quizYaml = null;
+        state.quizJson = null;
         state.quizRawPayload = null;
         state.quizRawPreview = null;
         state.quizMeta = null;
@@ -107,7 +106,7 @@ class QuizLibrary extends HTMLElement {
 
       if (state.previewQuiz?.id === quizId) {
         state.previewQuiz = null;
-        state.previewQuizYaml = null;
+        state.previewQuizJson = null;
         state.previewRawPayload = null;
         state.previewRawPreview = null;
         state.previewQuizMeta = null;
@@ -168,7 +167,7 @@ class QuizLibrary extends HTMLElement {
             </div>
           </div>
           ${renderQuizPreview(state.previewQuiz, {
-            quizYaml: state.previewQuizYaml,
+            quizJson: state.previewQuizJson,
             rawPayload: state.previewRawPayload,
             rawPreview: state.previewRawPreview,
             quizMeta: state.previewQuizMeta,
@@ -228,7 +227,7 @@ class QuizLibrary extends HTMLElement {
     });
     this.querySelector("button[data-clear-preview]")?.addEventListener("click", () => {
       state.previewQuiz = null;
-      state.previewQuizYaml = null;
+      state.previewQuizJson = null;
       state.previewRawPayload = null;
       state.previewRawPreview = null;
       state.previewQuizMeta = null;

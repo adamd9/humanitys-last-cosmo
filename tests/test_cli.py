@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-import yaml
+import json
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -26,8 +26,8 @@ def test_cli_mock_results_dir(tmp_path, monkeypatch):
             }
         ],
     }
-    quiz_path = tmp_path / "quiz.yaml"
-    quiz_path.write_text(yaml.safe_dump(quiz), encoding="utf-8")
+    quiz_path = tmp_path / "quiz.json"
+    quiz_path.write_text(json.dumps(quiz, ensure_ascii=False), encoding="utf-8")
 
     runtime_dir = tmp_path / "runtime-data"
     monkeypatch.setenv("LLM_POP_QUIZ_RUNTIME_DIR", str(runtime_dir))

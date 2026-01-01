@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
-import yaml
 
 def connect(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -32,7 +31,8 @@ def _init_db(conn: sqlite3.Connection) -> None:
             quiz_id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
             source_json TEXT NOT NULL,
-            quiz_yaml TEXT NOT NULL,
+            quiz_json TEXT NOT NULL,
+            quiz_yaml TEXT,
             raw_json TEXT NOT NULL DEFAULT '{}',
             created_at TEXT NOT NULL
         );
@@ -62,6 +62,7 @@ def _init_db(conn: sqlite3.Connection) -> None:
         """
     )
     _ensure_column(conn, "quizzes", "raw_json", "TEXT NOT NULL DEFAULT '{}'", "{}")
+    _ensure_column(conn, "quizzes", "quiz_json", "TEXT")
     timestamp = datetime.now(timezone.utc).isoformat()
     _ensure_column(
         conn,
@@ -92,7 +93,7 @@ def _ensure_column(
 def upsert_quiz(
     conn: sqlite3.Connection,
     quiz_def: dict,
-    quiz_yaml: str,
+    quiz_json: str,
     raw_payload: dict | None = None,
 ) -> None:
     quiz_id = quiz_def["id"]
@@ -100,18 +101,34 @@ def upsert_quiz(
     source_json = json.dumps(quiz_def.get("source", {}), ensure_ascii=False)
     raw_json = json.dumps(raw_payload or {}, ensure_ascii=False)
     created_at = datetime.now(timezone.utc).isoformat()
-    conn.execute(
-        """
-        INSERT INTO quizzes (quiz_id, title, source_json, quiz_yaml, raw_json, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(quiz_id) DO UPDATE SET
-            title=excluded.title,
-            source_json=excluded.source_json,
-            quiz_yaml=excluded.quiz_yaml,
-            raw_json=excluded.raw_json
-        """,
-        (quiz_id, title, source_json, quiz_yaml, raw_json, created_at),
-    )
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(quizzes)")}
+    if "quiz_yaml" in columns:
+        conn.execute(
+            """
+            INSERT INTO quizzes (quiz_id, title, source_json, quiz_json, quiz_yaml, raw_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(quiz_id) DO UPDATE SET
+                title=excluded.title,
+                source_json=excluded.source_json,
+                quiz_json=excluded.quiz_json,
+                quiz_yaml=excluded.quiz_yaml,
+                raw_json=excluded.raw_json
+            """,
+            (quiz_id, title, source_json, quiz_json, quiz_json, raw_json, created_at),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO quizzes (quiz_id, title, source_json, quiz_json, raw_json, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(quiz_id) DO UPDATE SET
+                title=excluded.title,
+                source_json=excluded.source_json,
+                quiz_json=excluded.quiz_json,
+                raw_json=excluded.raw_json
+            """,
+            (quiz_id, title, source_json, quiz_json, raw_json, created_at),
+        )
     conn.commit()
 
 
@@ -282,14 +299,24 @@ def delete_assets_for_run(conn: sqlite3.Connection, run_id: str) -> None:
     conn.commit()
 
 
-def fetch_quiz_yaml(conn: sqlite3.Connection, quiz_id: str) -> str | None:
+def _raise_legacy_yaml(quiz_id: str) -> None:
+    raise ValueError(
+        f"Quiz {quiz_id} is stored in legacy YAML format. Re-import the quiz to convert it to JSON."
+    )
+
+
+def fetch_quiz_json(conn: sqlite3.Connection, quiz_id: str) -> str | None:
     row = conn.execute(
-        "SELECT quiz_yaml FROM quizzes WHERE quiz_id = ?",
+        "SELECT quiz_json, quiz_yaml FROM quizzes WHERE quiz_id = ?",
         (quiz_id,),
     ).fetchone()
     if not row:
         return None
-    return row["quiz_yaml"]
+    if row["quiz_json"]:
+        return row["quiz_json"]
+    if row["quiz_yaml"]:
+        _raise_legacy_yaml(quiz_id)
+    return None
 
 
 def fetch_quizzes(conn: sqlite3.Connection) -> list[dict]:
@@ -312,25 +339,31 @@ def fetch_quizzes(conn: sqlite3.Connection) -> list[dict]:
 
 def fetch_quiz_def(conn: sqlite3.Connection, quiz_id: str) -> dict | None:
     row = conn.execute(
-        "SELECT quiz_yaml FROM quizzes WHERE quiz_id = ?",
+        "SELECT quiz_json, quiz_yaml FROM quizzes WHERE quiz_id = ?",
         (quiz_id,),
     ).fetchone()
     if not row:
         return None
-    return yaml.safe_load(row["quiz_yaml"])
+    if row["quiz_json"]:
+        return json.loads(row["quiz_json"])
+    if row["quiz_yaml"]:
+        _raise_legacy_yaml(quiz_id)
+    return None
 
 
 def fetch_quiz_record(conn: sqlite3.Connection, quiz_id: str) -> dict | None:
     row = conn.execute(
-        "SELECT quiz_yaml, raw_json FROM quizzes WHERE quiz_id = ?",
+        "SELECT quiz_json, quiz_yaml, raw_json FROM quizzes WHERE quiz_id = ?",
         (quiz_id,),
     ).fetchone()
     if not row:
         return None
+    if not row["quiz_json"] and row["quiz_yaml"]:
+        _raise_legacy_yaml(quiz_id)
     raw_payload = json.loads(row["raw_json"]) if row["raw_json"] else {}
     return {
-        "quiz": yaml.safe_load(row["quiz_yaml"]),
-        "quiz_yaml": row["quiz_yaml"],
+        "quiz": json.loads(row["quiz_json"]) if row["quiz_json"] else {},
+        "quiz_json": row["quiz_json"],
         "raw_payload": raw_payload,
     }
 

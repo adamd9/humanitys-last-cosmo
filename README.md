@@ -19,7 +19,7 @@ uvicorn llm_pop_quiz_bench.api.app:app --reload
 Then open:
 http://127.0.0.1:8000
 
-To convert a raw quiz text file to YAML using OpenAI, run:
+To convert a raw quiz text file to JSON using OpenAI, run:
 
 ```bash
 python -m llm_pop_quiz_bench.cli.main quiz:convert path/to/quiz.txt

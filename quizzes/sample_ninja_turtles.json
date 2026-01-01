@@ -1,0 +1,38 @@
+{
+  "id": "which-ninja-turtle-are-you",
+  "title": "Which Ninja Turtle Are You?",
+  "source": {
+    "publication": "Example",
+    "url": "https://example.com/quiz"
+  },
+  "notes": "Internal research use; do not publish full text without permission.",
+  "questions": [
+    {
+      "id": "Q1",
+      "text": "Pick a pizza topping:",
+      "options": [
+        { "id": "A", "text": "Pepperoni", "tags": ["bold"] },
+        { "id": "B", "text": "Veggie", "tags": ["thoughtful"] },
+        { "id": "C", "text": "Extra cheese", "tags": ["fun"] },
+        { "id": "D", "text": "Mushrooms", "tags": ["calm"] }
+      ]
+    },
+    {
+      "id": "Q2",
+      "text": "Your leadership style is...",
+      "options": [
+        { "id": "A", "text": "Charge ahead", "tags": ["leader", "bold"] },
+        { "id": "B", "text": "Plan first", "tags": ["strategic"] },
+        { "id": "C", "text": "Keep it light", "tags": ["fun"] },
+        { "id": "D", "text": "Observe quietly", "tags": ["calm"] }
+      ]
+    }
+  ],
+  "outcomes": [
+    { "id": "leonardo", "condition": { "mostlyTag": "leader" }, "result": "Leonardo" },
+    { "id": "donatello", "condition": { "mostlyTag": "strategic" }, "result": "Donatello" },
+    { "id": "michelangelo", "condition": { "mostlyTag": "fun" }, "result": "Michelangelo" },
+    { "id": "raphael", "condition": { "mostlyTag": "bold" }, "result": "Raphael" }
+  ],
+  "conversion_feedback": ""
+}

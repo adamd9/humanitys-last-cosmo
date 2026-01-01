@@ -1,5 +1,5 @@
 quizzes:
-  - quizzes/sample_ninja_turtles.yaml
+  - quizzes/sample_ninja_turtles.json
 models: ["openai/gpt-4o", "anthropic/claude-3.5-sonnet"]
 repetitions: 1
 concurrency:

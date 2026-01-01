@@ -30,7 +30,7 @@ export async function refreshQuizzes() {
 export async function loadQuiz(quizId) {
   const data = await fetchJSON(`/api/quizzes/${quizId}`);
   state.quiz = data.quiz;
-  state.quizYaml = data.quiz_yaml || null;
+  state.quizJson = data.quiz_json || null;
   state.quizRawPayload = data.raw_payload || null;
   state.quizRawPreview = data.raw_preview || null;
   state.quizMeta = data.quiz_meta || null;

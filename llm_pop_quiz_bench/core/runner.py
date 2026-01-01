@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
+import json
 
 from ..adapters.base import ChatAdapter
 from .prompt import PromptContext, render_prompt
@@ -57,8 +57,10 @@ def _append_log(path: Path, message: str) -> None:
 async def run_quiz(
     quiz_path: Path, adapters: list[ChatAdapter], run_id: str, runtime_dir: Path | None = None
 ) -> None:
-    quiz_yaml = quiz_path.read_text(encoding="utf-8")
-    quiz = yaml.safe_load(quiz_yaml)
+    if quiz_path.suffix.lower() in {".yaml", ".yml"}:
+        raise ValueError("Legacy YAML quizzes are no longer supported. Use a JSON quiz file.")
+    quiz_json = quiz_path.read_text(encoding="utf-8")
+    quiz = json.loads(quiz_json)
 
     questions = quiz["questions"]
 
@@ -69,7 +71,7 @@ async def run_quiz(
 
     log_path = runtime_paths.logs_dir / f"{run_id}.log"
     conn = connect(runtime_paths.db_path)
-    upsert_quiz(conn, quiz, quiz_yaml)
+    upsert_quiz(conn, quiz, quiz_json)
     insert_run(
         conn,
         run_id=run_id,

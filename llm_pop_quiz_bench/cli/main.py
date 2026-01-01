@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from pathlib import Path
@@ -13,7 +14,7 @@ load_dotenv()
 from ..core import reporter
 from ..core.model_config import model_config_loader
 from ..core.openrouter import fetch_user_models, normalize_models, strip_prefix
-from ..core.quiz_converter import text_to_yaml
+from ..core.quiz_converter import text_to_quiz
 from ..core.runner import run_sync
 from ..core.runtime_data import get_runtime_paths
 
@@ -29,7 +30,7 @@ def benchmark(
     """Run a complete benchmark: quiz execution + report generation in one step.
     
     Args:
-        quiz: Path to the quiz YAML file
+        quiz: Path to the quiz JSON file
         models: Comma-separated list of model IDs (e.g., "openai/gpt-4o")
         group: Model group name from config (e.g., "default", "openai_comparison")
     """
@@ -132,13 +133,13 @@ def list_models() -> None:
     typer.echo("")
     typer.echo("📝 Usage Examples:")
     typer.echo("  # Use specific models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openai/gpt-4o")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.json --models openai/gpt-4o")
     typer.echo("")
     typer.echo("  # Use specific model group")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --group openai_comparison")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.json --group openai_comparison")
     typer.echo("")
     typer.echo("  # Use specific models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.yaml --models openai/gpt-4o,anthropic/claude-3.5-sonnet")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.json --models openai/gpt-4o,anthropic/claude-3.5-sonnet")
 
 
 @app.command("quiz:run")
@@ -176,17 +177,17 @@ def quiz_run(quiz: Path, models: str = None) -> None:
 
 @app.command("quiz:demo")
 def quiz_demo() -> None:
-    quiz_run(Path("quizzes/sample_ninja_turtles.yaml"), models="openai/gpt-4o")
+    quiz_run(Path("quizzes/sample_ninja_turtles.json"), models="openai/gpt-4o")
 
 
 @app.command("quiz:convert")
 def quiz_convert(text_file: Path, model: str | None = None) -> None:
-    """Convert a raw quiz text file to YAML using OpenAI."""
+    """Convert a raw quiz text file to JSON using OpenAI."""
     text = text_file.read_text(encoding="utf-8")
-    yaml_text = text_to_yaml(text, model=model)
-    out_path = text_file.with_suffix(".yaml")
-    out_path.write_text(yaml_text, encoding="utf-8")
-    typer.echo(f"YAML written to {out_path}")
+    quiz_def = text_to_quiz(text, model=model)
+    out_path = text_file.with_suffix(".json")
+    out_path.write_text(json.dumps(quiz_def, ensure_ascii=False, indent=2), encoding="utf-8")
+    typer.echo(f"JSON written to {out_path}")
 
 
 @app.command("quiz:report")

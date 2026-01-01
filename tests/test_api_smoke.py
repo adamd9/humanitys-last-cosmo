@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -53,10 +52,10 @@ def test_parse_quiz_text(client, monkeypatch):
         "outcomes": [],
     }
 
-    monkeypatch.setattr(api_app, "convert_to_yaml", lambda **_: yaml.safe_dump(quiz_def))
+    monkeypatch.setattr(api_app, "convert_to_quiz", lambda **_: quiz_def)
     resp = client.post("/api/quizzes/parse", data={"text": "mock"})
     assert resp.status_code == 200
-    assert resp.json()["quiz"]["id"] == "mock-quiz"
+    assert resp.json()["quiz"]["id"]
 
 
 def test_create_run_returns_id(client, monkeypatch):
@@ -83,13 +82,14 @@ def test_create_run_returns_id(client, monkeypatch):
     }
 
     monkeypatch.setenv("LLM_POP_QUIZ_ENV", "mock")
-    monkeypatch.setattr(api_app, "convert_to_yaml", lambda **_: yaml.safe_dump(quiz_def))
+    monkeypatch.setattr(api_app, "convert_to_quiz", lambda **_: quiz_def)
     monkeypatch.setattr(api_app, "_run_and_report", lambda *args, **kwargs: None)
 
     resp = client.post("/api/quizzes/parse", data={"text": "mock"})
     assert resp.status_code == 200
+    quiz_id = resp.json()["quiz"]["id"]
 
-    run_resp = client.post("/api/runs", json={"quiz_id": "mock-quiz", "models": ["openai/gpt-4o"]})
+    run_resp = client.post("/api/runs", json={"quiz_id": quiz_id, "models": ["openai/gpt-4o"]})
     assert run_resp.status_code == 200
     assert "run_id" in run_resp.json()
 
@@ -116,20 +116,21 @@ def test_reprocess_quiz_from_raw(client, monkeypatch):
         "outcomes": [],
     }
 
-    monkeypatch.setattr(api_app, "convert_to_yaml", lambda **kwargs: yaml.safe_dump(base_quiz_def))
+    monkeypatch.setattr(api_app, "convert_to_quiz", lambda **kwargs: base_quiz_def)
     resp = client.post("/api/quizzes/parse", data={"text": "initial raw"})
     assert resp.status_code == 200
     parsed = resp.json()
+    quiz_id = parsed["quiz"]["id"]
     assert parsed["raw_preview"]["text"] == "initial raw"
 
-    def reprocess_convert_to_yaml(**kwargs):
+    def reprocess_convert_to_quiz(**kwargs):
         assert kwargs.get("text") == "initial raw"
         updated = dict(base_quiz_def)
         updated["title"] = "Reprocessed Title"
-        return yaml.safe_dump(updated)
+        return updated
 
-    monkeypatch.setattr(api_app, "convert_to_yaml", reprocess_convert_to_yaml)
-    reprocess_resp = client.post("/api/quizzes/mock-quiz/reprocess")
+    monkeypatch.setattr(api_app, "convert_to_quiz", reprocess_convert_to_quiz)
+    reprocess_resp = client.post(f"/api/quizzes/{quiz_id}/reprocess")
     assert reprocess_resp.status_code == 200
     data = reprocess_resp.json()
     assert data["quiz"]["title"] == "Reprocessed Title"
@@ -159,13 +160,14 @@ def test_delete_quiz_removes_runs_and_assets(client, monkeypatch):
         "outcomes": [],
     }
 
-    monkeypatch.setattr(api_app, "convert_to_yaml", lambda **_: yaml.safe_dump(quiz_def))
+    monkeypatch.setattr(api_app, "convert_to_quiz", lambda **_: quiz_def)
     resp = client.post("/api/quizzes/parse", data={"text": "mock"})
     assert resp.status_code == 200
+    quiz_id = resp.json()["quiz"]["id"]
 
     runtime_paths = get_runtime_paths()
     conn = connect(runtime_paths.db_path)
-    insert_run(conn, run_id="run-123", quiz_id="mock-quiz", status="running", models=["m"])
+    insert_run(conn, run_id="run-123", quiz_id=quiz_id, status="running", models=["m"])
     run_assets_dir = runtime_paths.assets_dir / "run-123"
     run_assets_dir.mkdir(parents=True, exist_ok=True)
     asset_path = run_assets_dir / "report.txt"
@@ -173,20 +175,20 @@ def test_delete_quiz_removes_runs_and_assets(client, monkeypatch):
     insert_asset(conn, "run-123", "report", asset_path)
     conn.close()
 
-    delete_resp = client.delete("/api/quizzes/mock-quiz")
+    delete_resp = client.delete(f"/api/quizzes/{quiz_id}")
     assert delete_resp.status_code == 200
     data = delete_resp.json()
-    assert data["quiz_id"] == "mock-quiz"
+    assert data["quiz_id"] == quiz_id
     assert data["runs_removed"] == 1
     assert not run_assets_dir.exists()
 
     conn = connect(runtime_paths.db_path)
-    run_count = conn.execute("SELECT COUNT(*) FROM runs WHERE quiz_id = ?", ("mock-quiz",)).fetchone()[0]
-    quiz_count = conn.execute("SELECT COUNT(*) FROM quizzes WHERE quiz_id = ?", ("mock-quiz",)).fetchone()[0]
+    run_count = conn.execute("SELECT COUNT(*) FROM runs WHERE quiz_id = ?", (quiz_id,)).fetchone()[0]
+    quiz_count = conn.execute("SELECT COUNT(*) FROM quizzes WHERE quiz_id = ?", (quiz_id,)).fetchone()[0]
     conn.close()
 
     assert run_count == 0
     assert quiz_count == 0
 
-    missing = client.get("/api/quizzes/mock-quiz")
+    missing = client.get(f"/api/quizzes/{quiz_id}")
     assert missing.status_code == 404

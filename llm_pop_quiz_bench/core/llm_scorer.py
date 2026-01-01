@@ -28,7 +28,7 @@ def score_quiz_with_llm(
     Use an LLM to intelligently score a quiz and determine the outcome.
     
     Args:
-        quiz_def: The quiz definition (YAML structure)
+        quiz_def: The quiz definition (JSON structure)
         model_responses: List of model responses with question_id and choice
         model_name: LLM model to use for scoring
         api_key_env: Environment variable name for API key

@@ -1,4 +1,4 @@
-import { fetchJSON, refreshQuizzes } from "../api.js";
+import { fetchJSON, loadQuiz, refreshQuizzes } from "../api.js";
 import { state, setCurrentStep } from "../state.js";
 import { getQuizTypeLabel, getScoringSummary } from "../utils.js";
 
@@ -25,14 +25,23 @@ class QuizUploader extends HTMLElement {
         body.append("text", text);
       }
       const data = await fetchJSON("/api/quizzes/parse", { method: "POST", body, headers });
+      const newQuizId = data.quiz?.id;
       state.quiz = data.quiz;
-      state.quizYaml = data.quiz_yaml;
+      state.quizJson = data.quiz_json;
       state.quizRawPayload = data.raw_payload || null;
       state.quizRawPreview = data.raw_preview || null;
       state.quizMeta = data.quiz_meta || null;
       status.textContent = `Parsed quiz: ${state.quiz.id} (saved to library)`;
       this.render();
       await refreshQuizzes();
+      if (newQuizId) {
+        try {
+          await loadQuiz(newQuizId);
+        } catch (err) {
+          // Keep the parsed quiz in state even if refresh lookup fails.
+        }
+      }
+      setCurrentStep(2);
       document.dispatchEvent(new CustomEvent("quiz:updated"));
     } catch (err) {
       status.textContent = `Error: ${err.message}`;
@@ -41,8 +50,8 @@ class QuizUploader extends HTMLElement {
 
   render() {
     const previewText =
-      state.quizYaml ||
-      (state.quiz ? "YAML preview is available after parsing a new quiz." : "");
+      state.quizJson ||
+      (state.quiz ? "JSON preview is available after parsing a new quiz." : "");
     const quizMeta = state.quiz
       ? `
         <div class="status">Detected quiz type: ${getQuizTypeLabel(state.quiz, state.quizMeta)}</div>
@@ -54,7 +63,7 @@ class QuizUploader extends HTMLElement {
         <div class="panel-header">
           <div class="panel-title">
             <h2>Quiz Studio</h2>
-            <div class="panel-subtitle">Convert a new quiz into YAML.</div>
+            <div class="panel-subtitle">Convert a new quiz into JSON.</div>
           </div>
           <span class="badge">Step 1</span>
         </div>
@@ -67,7 +76,7 @@ class QuizUploader extends HTMLElement {
           <input type="file" accept="image/*" />
         </div>
         <div class="actions">
-          <button>Parse to YAML</button>
+          <button>Parse to JSON</button>
           <button class="secondary" data-next>Next</button>
         </div>
         <div class="status">Waiting for input.</div>

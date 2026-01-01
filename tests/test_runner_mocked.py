@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import yaml
+import json
 
 from llm_pop_quiz_bench.adapters.mock_adapter import MockAdapter
 from llm_pop_quiz_bench.core.runner import run_quiz
@@ -28,9 +28,8 @@ async def _run(tmp_path: Path):
             }
         ],
     }
-    quiz_path = tmp_path / "quiz.yaml"
-    with open(quiz_path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(quiz, f)
+    quiz_path = tmp_path / "quiz.json"
+    quiz_path.write_text(json.dumps(quiz, ensure_ascii=False), encoding="utf-8")
     run_id = "test-run"
     runtime_dir = tmp_path / "runtime-data"
     await run_quiz(quiz_path, [MockAdapter()], run_id, runtime_dir)

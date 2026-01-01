@@ -540,7 +540,7 @@ export function buildCapabilityRows(quizMeta, modelCount) {
       ? "Requires multiple models."
       : hasOutcomes
         ? "Generated for multi-model outcome quizzes."
-        : "Requires outcomes in the quiz YAML.",
+        : "Requires outcomes in the quiz JSON.",
     ["outcomes"]
   );
   return rows;
@@ -619,7 +619,7 @@ export function renderRawInput(rawPreview) {
 
 export function renderQuizPreview(
   quiz,
-  { quizYaml = null, rawPayload = null, rawPreview = null, quizMeta = null } = {}
+  { quizJson = null, rawPayload = null, rawPreview = null, quizMeta = null } = {}
 ) {
   const questions = quiz.questions || [];
   const items = questions
@@ -654,11 +654,11 @@ export function renderQuizPreview(
     })
     .join("");
 
-  const yamlBlock = quizYaml
+  const jsonBlock = quizJson
     ? `
       <details class=\"yaml-preview\">
-        <summary>View YAML</summary>
-        <pre class=\"preview\">${quizYaml}</pre>
+        <summary>View JSON</summary>
+        <pre class=\"preview\">${quizJson}</pre>
       </details>
     `
     : "";
@@ -677,6 +677,7 @@ export function renderQuizPreview(
     ["Type", getQuizTypeLabel(quiz, quizMeta)],
     ["Scoring", getScoringSummary(quiz, quizMeta)],
     ["Notes", quiz.notes || "—"],
+    ["Conversion feedback", quiz.conversion_feedback || "—"],
     ["Raw backup", rawPayload ? `${rawPayload.type || "stored"}` : "Not stored"],
   ]
     .map(
@@ -700,6 +701,6 @@ export function renderQuizPreview(
       <ul class=\"outcome-list\">${outcomes || "<li class='status'>No outcomes defined.</li>"}</ul>
     </div>
     ${rawBlock}
-    ${yamlBlock}
+    ${jsonBlock}
   `;
 }

@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
+import json
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
@@ -18,7 +18,7 @@ from ..core import reporter
 from ..core.model_config import model_config_loader
 from ..core.openrouter import fetch_user_models, normalize_models, strip_prefix
 from ..core.quiz_meta import build_quiz_meta
-from ..core.quiz_converter import convert_to_yaml
+from ..core.quiz_converter import convert_to_quiz
 from ..core.runtime_data import build_runtime_paths, get_runtime_paths
 from ..core.runner import run_sync
 from ..core.logging_utils import rotate_log_if_needed
@@ -28,7 +28,7 @@ from ..core.sqlite_store import (
     delete_assets_for_run,
     fetch_assets,
     fetch_quiz_record,
-    fetch_quiz_yaml,
+    fetch_quiz_json,
     fetch_quizzes,
     fetch_results,
     fetch_run,
@@ -61,48 +61,6 @@ if STATIC_ROOT.exists():
     app.mount("/static", StaticFiles(directory=STATIC_ROOT), name="static")
 
 
-def _strip_fenced_yaml(text: str) -> str:
-    trimmed = text.strip()
-    if "```" in trimmed:
-        start = trimmed.find("```")
-        end = trimmed.find("```", start + 3)
-        if end != -1:
-            block = trimmed[start + 3 : end]
-            lines = block.splitlines()
-            if lines and lines[0].strip().startswith("yaml"):
-                lines = lines[1:]
-            return "\n".join(lines).strip()
-    return trimmed
-
-
-def _sanitize_yaml(text: str) -> str:
-    keys_to_quote = {"title", "notes", "text", "result", "description", "publication", "url"}
-    lines = []
-    for line in text.splitlines():
-        if ":" not in line:
-            lines.append(line)
-            continue
-        prefix, value = line.split(":", 1)
-        key = prefix.strip().lstrip("-").strip()
-        stripped = value.lstrip()
-        if key in keys_to_quote:
-            if stripped.startswith(("\"", "'", "[", "{")):
-                lines.append(line)
-                continue
-            if stripped in ("null", "true", "false"):
-                lines.append(line)
-                continue
-            if any(ch.isdigit() for ch in stripped[:1]):
-                lines.append(line)
-                continue
-            if ":" in stripped:
-                escaped = stripped.replace("\\", "\\\\").replace("\"", "\\\"")
-                lines.append(f"{prefix}: \"{escaped}\"")
-                continue
-        lines.append(line)
-    return "\n".join(lines)
-
-
 def _append_server_log(path: Path, message: str) -> None:
     timestamp = datetime.now(timezone.utc).isoformat()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -111,20 +69,27 @@ def _append_server_log(path: Path, message: str) -> None:
         handle.write(f"[{timestamp}] {message}\n")
 
 
-def _log_quiz_yaml_failure(
+def _log_quiz_json_failure(
     runtime_paths,
     context: str,
-    yaml_text: str,
+    json_text: str,
     error: Exception | None = None,
 ) -> None:
     log_path = runtime_paths.logs_dir / "quiz_conversion.log"
-    snippet = yaml_text[:2000].replace("\n", "\\n")
+    snippet = json_text[:2000].replace("\n", "\\n")
     detail = f" error={error}" if error else ""
-    _append_server_log(log_path, f"{context} invalid_quiz_yaml{detail} yaml_snippet={snippet}")
+    _append_server_log(log_path, f"{context} invalid_quiz_json{detail} json_snippet={snippet}")
 
 
-def _invalid_quiz_yaml_detail(reason: str) -> str:
-    return f"Invalid quiz YAML returned ({reason}; see logs/quiz_conversion.log)"
+def _invalid_quiz_json_detail(reason: str) -> str:
+    return f"Invalid quiz JSON returned ({reason}; see logs/quiz_conversion.log)"
+
+
+def _format_conversion_error_detail(error: Exception, limit: int = 300) -> str:
+    detail = str(error).replace("\n", " ")
+    if len(detail) > limit:
+        detail = f"{detail[:limit].rstrip()}..."
+    return detail
 
 
 @app.on_event("startup")
@@ -299,14 +264,18 @@ def list_quizzes() -> dict:
 def get_quiz(quiz_id: str) -> dict:
     runtime_paths = get_runtime_paths()
     conn = connect(runtime_paths.db_path)
-    record = fetch_quiz_record(conn, quiz_id)
+    try:
+        record = fetch_quiz_record(conn, quiz_id)
+    except ValueError as exc:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     conn.close()
     if not record:
         raise HTTPException(status_code=404, detail="Quiz not found")
     raw_preview = _build_raw_preview(record.get("raw_payload"))
     return {
         "quiz": record["quiz"],
-        "quiz_yaml": record["quiz_yaml"],
+        "quiz_json": record["quiz_json"],
         "quiz_meta": build_quiz_meta(record["quiz"]),
         "raw_payload": record.get("raw_payload"),
         "raw_preview": raw_preview,
@@ -317,7 +286,10 @@ def get_quiz(quiz_id: str) -> dict:
 def remove_quiz(quiz_id: str) -> dict:
     runtime_paths = get_runtime_paths()
     conn = connect(runtime_paths.db_path)
-    record = fetch_quiz_record(conn, quiz_id)
+    try:
+        record = fetch_quiz_record(conn, quiz_id)
+    except ValueError:
+        record = {"raw_payload": None}
     if not record:
         conn.close()
         raise HTTPException(status_code=404, detail="Quiz not found")
@@ -325,7 +297,7 @@ def remove_quiz(quiz_id: str) -> dict:
     run_ids = delete_quiz(conn, quiz_id)
     conn.close()
 
-    quiz_path = runtime_paths.quizzes_dir / f"{quiz_id}.yaml"
+    quiz_path = runtime_paths.quizzes_dir / f"{quiz_id}.json"
     if quiz_path.exists():
         quiz_path.unlink()
 
@@ -365,41 +337,36 @@ async def parse_quiz(
     elif text_input:
         raw_payload = {"type": "text", "text": text_input}
 
-    yaml_text = convert_to_yaml(
-        text=text_input,
-        image_bytes=image_bytes,
-        image_mime=image_mime,
-        model=model,
-    )
-    yaml_text = _strip_fenced_yaml(yaml_text)
     try:
-        quiz_def = yaml.safe_load(yaml_text)
-    except yaml.YAMLError as exc:
-        yaml_text = _sanitize_yaml(yaml_text)
-        try:
-            quiz_def = yaml.safe_load(yaml_text)
-        except yaml.YAMLError as exc2:
-            _log_quiz_yaml_failure(runtime_paths, "parse_quiz", yaml_text, error=exc2)
-            raise HTTPException(
-                status_code=400,
-                detail=_invalid_quiz_yaml_detail("YAML parse error"),
-            ) from exc2
-    if not quiz_def or "id" not in quiz_def:
-        _log_quiz_yaml_failure(runtime_paths, "parse_quiz", yaml_text)
+        quiz_def = convert_to_quiz(
+            text=text_input,
+            image_bytes=image_bytes,
+            image_mime=image_mime,
+            model=model,
+        )
+    except Exception as exc:
+        _log_quiz_json_failure(runtime_paths, "parse_quiz", str(exc), error=exc)
+        detail = _format_conversion_error_detail(exc)
         raise HTTPException(
             status_code=400,
-            detail=_invalid_quiz_yaml_detail("missing required id field"),
+            detail=_invalid_quiz_json_detail(f"conversion error: {detail}"),
+        ) from exc
+    if not quiz_def or "id" not in quiz_def:
+        _log_quiz_json_failure(runtime_paths, "parse_quiz", json.dumps(quiz_def or {}))
+        raise HTTPException(
+            status_code=400,
+            detail=_invalid_quiz_json_detail("missing required id field"),
         )
 
     quiz_def["id"] = uuid.uuid4().hex
-    yaml_text = yaml.safe_dump(quiz_def, sort_keys=False, allow_unicode=False)
+    quiz_json = json.dumps(quiz_def, ensure_ascii=False, indent=2)
 
     conn = connect(runtime_paths.db_path)
-    upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
+    upsert_quiz(conn, quiz_def, quiz_json, raw_payload)
     conn.close()
     return {
         "quiz": quiz_def,
-        "quiz_yaml": yaml_text,
+        "quiz_json": quiz_json,
         "quiz_meta": build_quiz_meta(quiz_def),
         "raw_payload": raw_payload,
         "raw_preview": _build_raw_preview(raw_payload),
@@ -422,7 +389,6 @@ async def reprocess_quiz(
     if not raw_payload:
         raise HTTPException(status_code=400, detail="Quiz is missing raw input data")
 
-    yaml_text = None
     image_bytes = None
     image_mime = None
     text_input = None
@@ -440,38 +406,34 @@ async def reprocess_quiz(
     else:
         raise HTTPException(status_code=400, detail="Unsupported raw input type")
 
-    yaml_text = convert_to_yaml(
-        text=text_input,
-        image_bytes=image_bytes,
-        image_mime=image_mime,
-        model=model,
-    )
-    yaml_text = _strip_fenced_yaml(yaml_text)
     try:
-        quiz_def = yaml.safe_load(yaml_text)
-    except yaml.YAMLError as exc:
-        yaml_text = _sanitize_yaml(yaml_text)
-        try:
-            quiz_def = yaml.safe_load(yaml_text)
-        except yaml.YAMLError as exc2:
-            _log_quiz_yaml_failure(runtime_paths, "reprocess_quiz", yaml_text, error=exc2)
-            raise HTTPException(
-                status_code=400,
-                detail=_invalid_quiz_yaml_detail("YAML parse error"),
-            ) from exc2
-    if not quiz_def or "id" not in quiz_def:
-        _log_quiz_yaml_failure(runtime_paths, "reprocess_quiz", yaml_text)
+        quiz_def = convert_to_quiz(
+            text=text_input,
+            image_bytes=image_bytes,
+            image_mime=image_mime,
+            model=model,
+        )
+    except Exception as exc:
+        _log_quiz_json_failure(runtime_paths, "reprocess_quiz", str(exc), error=exc)
+        detail = _format_conversion_error_detail(exc)
         raise HTTPException(
             status_code=400,
-            detail=_invalid_quiz_yaml_detail("missing required id field"),
+            detail=_invalid_quiz_json_detail(f"conversion error: {detail}"),
+        ) from exc
+    if not quiz_def or "id" not in quiz_def:
+        _log_quiz_json_failure(runtime_paths, "reprocess_quiz", json.dumps(quiz_def or {}))
+        raise HTTPException(
+            status_code=400,
+            detail=_invalid_quiz_json_detail("missing required id field"),
         )
 
+    quiz_json = json.dumps(quiz_def, ensure_ascii=False, indent=2)
     conn = connect(runtime_paths.db_path)
-    upsert_quiz(conn, quiz_def, yaml_text, raw_payload)
+    upsert_quiz(conn, quiz_def, quiz_json, raw_payload)
     conn.close()
     return {
         "quiz": quiz_def,
-        "quiz_yaml": yaml_text,
+        "quiz_json": quiz_json,
         "quiz_meta": build_quiz_meta(quiz_def),
         "raw_payload": raw_payload,
         "raw_preview": _build_raw_preview(raw_payload),
@@ -484,13 +446,17 @@ def create_run(req: RunRequest, background_tasks: BackgroundTasks) -> dict:
     use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
 
     conn = connect(runtime_paths.db_path)
-    quiz_yaml = fetch_quiz_yaml(conn, req.quiz_id)
+    try:
+        quiz_json = fetch_quiz_json(conn, req.quiz_id)
+    except ValueError as exc:
+        conn.close()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     conn.close()
-    if not quiz_yaml:
+    if not quiz_json:
         raise HTTPException(status_code=404, detail="Quiz not found")
 
-    quiz_path = runtime_paths.quizzes_dir / f"{req.quiz_id}.yaml"
-    quiz_path.write_text(quiz_yaml, encoding="utf-8")
+    quiz_path = runtime_paths.quizzes_dir / f"{req.quiz_id}.json"
+    quiz_path.write_text(quiz_json, encoding="utf-8")
 
     if not req.models and not req.group:
         raise HTTPException(status_code=400, detail="Select at least one model or group")
