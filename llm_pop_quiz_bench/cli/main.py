@@ -139,7 +139,7 @@ def list_models() -> None:
     typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.json --group openai_comparison")
     typer.echo("")
     typer.echo("  # Use specific models")
-    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.json --models openai/gpt-4o,anthropic/claude-3.5-sonnet")
+    typer.echo("  python -m llm_pop_quiz_bench.cli.main benchmark quiz.json --models openai/gpt-4o,anthropic/claude-sonnet-5")
 
 
 @app.command("quiz:run")

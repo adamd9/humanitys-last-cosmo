@@ -75,41 +75,6 @@ models:
       max_tokens: 256
     maxConcurrency: 2
 
-  - id: anthropic/claude-3.5-sonnet
-    description: "Anthropic Claude 3.5 Sonnet via OpenRouter"
-    defaultParams:
-      temperature: 0.2
-      max_tokens: 256
-    maxConcurrency: 2
-
-  - id: anthropic/claude-3.5-haiku
-    description: "Anthropic Claude 3.5 Haiku via OpenRouter"
-    defaultParams:
-      temperature: 0.2
-      max_tokens: 256
-    maxConcurrency: 3
-
-  - id: anthropic/claude-3-opus
-    description: "Anthropic Claude 3 Opus via OpenRouter"
-    defaultParams:
-      temperature: 0.2
-      max_tokens: 256
-    maxConcurrency: 1
-
-  - id: google/gemini-1.5-pro
-    description: "Google Gemini 1.5 Pro via OpenRouter"
-    defaultParams:
-      temperature: 0.2
-      max_output_tokens: 256
-    maxConcurrency: 1
-
-  - id: google/gemini-1.5-flash
-    description: "Google Gemini 1.5 Flash via OpenRouter"
-    defaultParams:
-      temperature: 0.2
-      max_output_tokens: 256
-    maxConcurrency: 2
-
 # Curated model groups now live in the frontend (web/static/utils.js -> buildModelGroups),
 # so the main app and the admin console share one consistent set (e.g. "The classics",
 # "Frontier models", "Best open source"). No legacy backend groups are defined here.

@@ -13,9 +13,15 @@
 // so you (or a coding agent) can eyeball a replacement. Exits non-zero if any
 // row needs attention, so it doubles as a CI / pre-review guard.
 
-import { FRONTIER_MODELS, GLOBAL_LEADERS, HLE_MODELS } from "../web/static/model-groups.js";
+import {
+  FRONTIER_MODELS,
+  GLOBAL_LEADERS,
+  HLE_MODELS,
+  OSS_MODELS,
+} from "../web/static/model-groups.js";
 
 const OPENROUTER = "https://openrouter.ai/api/v1/models";
+const HLE_MODELS_API = "https://dashboard.safe.ai/api/models";
 
 // Rough lab -> OpenRouter author prefix(es); only used to suggest replacements.
 const LAB_PREFIXES = {
@@ -39,6 +45,30 @@ if (!res.ok) {
 const catalogue = (await res.json()).data || [];
 const byId = new Map(catalogue.map((m) => [m.id, m]));
 const dateOf = (m) => (m?.created ? new Date(m.created * 1000).toISOString().slice(0, 10) : "?");
+
+const hleRes = await fetch(HLE_MODELS_API, {
+  headers: {
+    Accept: "application/json",
+    Origin: "https://lastexam.ai",
+    Referer: "https://lastexam.ai/",
+    "User-Agent": "frontier-check",
+  },
+});
+if (!hleRes.ok) {
+  console.error(`Failed to fetch live HLE lineup: ${hleRes.status} ${hleRes.statusText}`);
+  process.exit(2);
+}
+const hleHiddenIds = new Set(["glm-5.1", "glm-5.2"]);
+const liveHle = (await hleRes.json())
+  .filter(
+    (m) =>
+      m.releaseDate &&
+      m.model_size !== "nano" &&
+      m.model_size !== "mini" &&
+      !hleHiddenIds.has(m.id) &&
+      m.scores?.hle != null
+  )
+  .sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
 
 const suggest = (lab, fallbackPrefix) => {
   const prefixes = LAB_PREFIXES[lab] || (fallbackPrefix ? [fallbackPrefix] : []);
@@ -92,6 +122,25 @@ for (const block of GLOBAL_LEADERS) {
 // Validate the HLE-Rolling lineup too (exact ids; null = intentionally absent,
 // documented in `note`, and never counts as a problem).
 console.log(`\nHumanity's Last Exam — HLE-Rolling lineup (${HLE_MODELS.length} rows):`);
+const expectedHleSourceIds = HLE_MODELS.map((m) => m.sourceId);
+const liveHleSourceIds = liveHle.map((m) => m.id);
+if (JSON.stringify(expectedHleSourceIds) !== JSON.stringify(liveHleSourceIds)) {
+  problems++;
+  const expected = new Set(expectedHleSourceIds);
+  const live = new Set(liveHleSourceIds);
+  console.log("  DRIFT    local HLE list no longer matches the live lastexam.ai chart");
+  for (const m of liveHle.filter((m) => !expected.has(m.id))) {
+    console.log(`           ADDED live: ${m.name} (${m.id})`);
+  }
+  for (const m of HLE_MODELS.filter((m) => !live.has(m.sourceId))) {
+    console.log(`           REMOVED live: ${m.name} (${m.sourceId})`);
+  }
+  if (expectedHleSourceIds.length === liveHleSourceIds.length) {
+    console.log("           Same rows but source order changed.");
+  }
+} else {
+  console.log("  LIVE     exact rows and order match lastexam.ai");
+}
 for (const m of HLE_MODELS) {
   const name = m.name.padEnd(24);
   if (!m.id) {
@@ -104,9 +153,22 @@ for (const m of HLE_MODELS) {
   }
 }
 
+// Best open source is also an exact-id editorial list and needs the same stale
+// catalogue protection as the other curated groups.
+console.log(`\nBest open source (${OSS_MODELS.length} rows):`);
+for (const m of OSS_MODELS) {
+  const name = m.name.padEnd(24);
+  if (byId.has(m.id)) {
+    console.log(`  OK       ${name} ${m.id}  (${dateOf(byId.get(m.id))})`);
+  } else {
+    problems++;
+    console.log(`  MISSING  ${name} ${m.id}  — NOT ON OPENROUTER`);
+  }
+}
+
 console.log(
   problems
     ? `\n${problems} item(s) need attention — edit web/static/model-groups.js`
-    : `\nAll curated frontier + global-leaders + HLE models are present on OpenRouter.`
+    : `\nAll curated frontier + global-leaders + HLE + open-source models are present on OpenRouter.`
 );
 process.exit(problems ? 1 : 0);

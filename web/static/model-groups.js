@@ -90,7 +90,7 @@ export function countryForModelId(modelId) {
 //     the whole list against the live catalogue — it loudly flags every null id
 //     and every id that has gone missing, and suggests that lab's newest models.
 //
-// Last reviewed: 2026-07-22 · source: Artificial Analysis Intelligence Index
+// Last reviewed: 2026-08-27 · source: Artificial Analysis Intelligence Index
 // leaderboard (https://artificialanalysis.ai/models) + provider announcements.
 // ===========================================================================
 export const FRONTIER_MODELS = [
@@ -101,8 +101,8 @@ export const FRONTIER_MODELS = [
   },
   {
     lab: "Anthropic",
-    id: "anthropic/claude-fable-5",
-    note: "Claude Fable 5 — currently #1 on the AA Intelligence Index (newer than Opus 4.8)",
+    id: "anthropic/claude-opus-5",
+    note: "Claude Opus 5 — Anthropic's newest flagship on OpenRouter",
   },
   {
     lab: "Google",
@@ -111,8 +111,8 @@ export const FRONTIER_MODELS = [
   },
   {
     lab: "xAI",
-    id: "x-ai/grok-4.5",
-    note: "Grok 4.5 — newest xAI flagship",
+    id: "x-ai/grok-4.6",
+    note: "Grok 4.6 — newest xAI flagship",
   },
   {
     lab: "Moonshot",
@@ -121,18 +121,18 @@ export const FRONTIER_MODELS = [
   },
   {
     lab: "Alibaba",
-    id: "qwen/qwen3.7-max",
-    note: "Qwen3.7 Max (there is no Qwen 3.8 on OpenRouter yet)",
+    id: "qwen/qwen3.8-max",
+    note: "Qwen3.8 Max — latest GA flagship in the Qwen3.8 series",
   },
   {
     lab: "DeepSeek",
-    id: "deepseek/deepseek-v4-pro",
-    note: "DeepSeek V4 Pro — NOT R1 (R1 is no longer frontier)",
+    id: "deepseek/deepseek-v4-pro-0813",
+    note: "DeepSeek V4 Pro 0813 — GA release of V4 Pro",
   },
   {
     lab: "Meta",
-    id: "meta/muse-spark-1.1",
-    note: "Muse Spark 1.1 (Meta Superintelligence Labs) — top 10 on the AA Intelligence Index. NB: lives under the 'meta/' author prefix, NOT 'meta-llama/'.",
+    id: "meta/muse-spark-1.2",
+    note: "Muse Spark 1.2 (Meta Superintelligence Labs). NB: lives under the 'meta/' author prefix, NOT 'meta-llama/'.",
   },
 ];
 
@@ -152,42 +152,49 @@ export const FRONTIER_MODELS = [
 //     note the swap; if that newer build already appears in another row, leave
 //     this row id: null (documented) rather than duplicating it.
 //
-// Last reviewed: 2026-07-28 · sources: https://lastexam.ai (HLE-Rolling chart) +
-// Scale SEAL leaderboard (https://scale.com/leaderboard/humanitys_last_exam).
-// NB: HLE-Rolling now tracks THREE Grok builds as distinct rows (Grok 4, Grok
-// 4.2, Grok 4.5) — don't collapse them into one.
+// Last reviewed: 2026-08-27 · source: https://lastexam.ai HLE-Rolling chart,
+// backed by https://dashboard.safe.ai/api/models. The separate Scale SEAL
+// leaderboard is not the HLE-Rolling lineup and must not be substituted here.
+// NB: HLE-Rolling tracks FOUR Grok builds as distinct rows (Grok 4, Grok 4.2,
+// Grok 4.3, Grok 4.5) — don't collapse them into one.
 // ===========================================================================
 export const HLE_MODELS = [
-  { name: "GPT-4o", id: "openai/gpt-4o" },
-  { name: "o1", id: "openai/o1" },
-  { name: "DeepSeek R1", id: "deepseek/deepseek-r1", note: "Evaluated on the text-only subset." },
-  { name: "o3-mini", id: "openai/o3-mini" },
-  { name: "Claude Sonnet 3.7", id: null, note: "Base claude-3.7-sonnet aged off OpenRouter; Sonnet 4 / 4.5 / 4.6 each hold their own rows below, so there's no distinct newer Sonnet to substitute without duplicating one — left absent." },
-  { name: "Gemini 2.5 Pro Experimental", id: null, note: "March 2025 experimental build is gone; the GA Gemini 2.5 Pro row below already covers it." },
-  { name: "o3", id: "openai/o3" },
-  { name: "Claude Sonnet 4", id: "anthropic/claude-sonnet-4" },
-  { name: "Gemini 2.5 Pro", id: "google/gemini-2.5-pro" },
-  { name: "Grok 4", id: "x-ai/grok-4.3", note: "Base grok-4 aged off OpenRouter; grok-4.20 and grok-4.5 hold the Grok 4.2 / Grok 4.5 rows below, so this row uses the remaining newer build grok-4.3 (also the build we benchmark)." },
-  { name: "GPT-5", id: "openai/gpt-5" },
-  { name: "Claude Sonnet 4.5", id: "anthropic/claude-sonnet-4.5" },
-  { name: "Gemini 3 Pro", id: null, note: "No text Gemini 3 Pro on OpenRouter; the Gemini 3.1 Pro row below already covers it." },
-  { name: "Claude Opus 4.5", id: "anthropic/claude-opus-4.5" },
-  { name: "DeepSeek 3.2", id: "deepseek/deepseek-v3.2" },
-  { name: "GPT-5.2", id: "openai/gpt-5.2" },
-  { name: "Kimi K2.5", id: "moonshotai/kimi-k2.5" },
-  { name: "Claude Opus 4.6", id: "anthropic/claude-opus-4.6" },
-  { name: "Claude Sonnet 4.6", id: "anthropic/claude-sonnet-4.6" },
-  { name: "Gemini 3.1 Pro", id: "google/gemini-3.1-pro-preview" },
-  { name: "Grok 4.2", id: "x-ai/grok-4.20", note: "HLE's 'Grok 4.2' — OpenRouter lists this build as grok-4.20." },
-  { name: "GPT-5.4", id: "openai/gpt-5.4" },
-  { name: "Kimi K2.6", id: "moonshotai/kimi-k2.6" },
-  { name: "DeepSeek 4 Pro", id: "deepseek/deepseek-v4-pro" },
-  { name: "GPT-5.5", id: "openai/gpt-5.5" },
-  { name: "Claude Opus 4.8", id: "anthropic/claude-opus-4.8" },
-  { name: "Claude Fable 5", id: "anthropic/claude-fable-5" },
-  { name: "Muse Spark 1.1", id: "meta/muse-spark-1.1" },
-  { name: "Kimi K3", id: "moonshotai/kimi-k3" },
-  { name: "Grok 4.5", id: "x-ai/grok-4.5" },
+  { name: "GPT-4o", sourceId: "gpt-4o-2024-11-20", id: "openai/gpt-4o" },
+  { name: "o1", sourceId: "o1", id: "openai/o1" },
+  { name: "DeepSeek R1", sourceId: "deepseek-r1", id: "deepseek/deepseek-r1", note: "Evaluated on the text-only subset." },
+  { name: "o3-mini", sourceId: "o3-mini-high", id: "openai/o3-mini" },
+  { name: "Claude Sonnet 3.7", sourceId: "sonnet-3-7-thinking-16k", id: null, note: "Base claude-3.7-sonnet aged off OpenRouter; Sonnet 4 / 4.5 / 4.6 each hold their own rows below, so there's no distinct newer Sonnet to substitute without duplicating one — left absent." },
+  { name: "Gemini 2.5 Pro Experimental", sourceId: "gemini-2-5-pro-exp-high", id: null, note: "March 2025 experimental build is gone; the GA Gemini 2.5 Pro row below already covers it." },
+  { name: "o3", sourceId: "o3-high", id: "openai/o3" },
+  { name: "Claude Sonnet 4", sourceId: "sonnet-4-thinking-16k", id: "anthropic/claude-sonnet-4" },
+  { name: "Gemini 2.5 Pro", sourceId: "gemini-2-5-pro-high", id: "google/gemini-2.5-pro" },
+  { name: "Grok 4", sourceId: "grok-4", id: null, note: "Base grok-4 aged off OpenRouter; Grok 4.2, 4.3 and 4.5 each hold their own rows below, so no distinct substitute remains." },
+  { name: "GPT-5", sourceId: "gpt-5-high", id: "openai/gpt-5" },
+  { name: "Claude Sonnet 4.5", sourceId: "sonnet-4-5-thinking-32k", id: "anthropic/claude-sonnet-4.5" },
+  { name: "Kimi K2", sourceId: "kimi-k2-thinking", id: "moonshotai/kimi-k2-thinking" },
+  { name: "Gemini 3 Pro", sourceId: "gemini-3-pro-preview-high", id: null, note: "No text Gemini 3 Pro on OpenRouter; the Gemini 3.1 Pro row below already covers it." },
+  { name: "GPT-5.1", sourceId: "gpt-5.1-high", id: "openai/gpt-5.1" },
+  { name: "Claude Opus 4.5", sourceId: "opus-4-5-thinking-32k", id: "anthropic/claude-opus-4.5" },
+  { name: "DeepSeek 3.2", sourceId: "deepseek-v3.2-thinking", id: "deepseek/deepseek-v3.2" },
+  { name: "GPT-5.2", sourceId: "gpt-5.2-high", id: "openai/gpt-5.2" },
+  { name: "Kimi K2.5", sourceId: "kimi-k2.5-thinking", id: "moonshotai/kimi-k2.5" },
+  { name: "Claude Opus 4.6", sourceId: "opus-4-6-adaptive-64k", id: "anthropic/claude-opus-4.6" },
+  { name: "Claude Sonnet 4.6", sourceId: "sonnet-4-6-adaptive-64k", id: "anthropic/claude-sonnet-4.6" },
+  { name: "Gemini 3.1 Pro", sourceId: "gemini-3.1-pro-preview-high", id: "google/gemini-3.1-pro-preview" },
+  { name: "GPT-5.4", sourceId: "gpt-5.4-high", id: "openai/gpt-5.4" },
+  { name: "Grok 4.2", sourceId: "grok-4-2", id: "x-ai/grok-4.20", note: "HLE's 'Grok 4.2' — OpenRouter lists this build as grok-4.20." },
+  { name: "Claude Opus 4.7", sourceId: "opus-4-7-adaptive-64k", id: "anthropic/claude-opus-4.7" },
+  { name: "Grok 4.3", sourceId: "grok-4-3", id: "x-ai/grok-4.3" },
+  { name: "Kimi K2.6", sourceId: "kimi-k2.6-64k", id: "moonshotai/kimi-k2.6" },
+  { name: "GPT-5.5", sourceId: "gpt-5.5-high", id: "openai/gpt-5.5" },
+  { name: "DeepSeek 4 Pro", sourceId: "deepseek-v4-pro", id: "deepseek/deepseek-v4-pro" },
+  { name: "Claude Opus 4.8", sourceId: "opus-4-8-high", id: "anthropic/claude-opus-4.8" },
+  { name: "Claude Fable 5", sourceId: "claude-fable-5-high", id: "anthropic/claude-fable-5" },
+  { name: "Grok 4.5", sourceId: "grok-4.5", id: "x-ai/grok-4.5" },
+  { name: "GPT-5.6 Sol", sourceId: "gpt-5.6-sol-high", id: "openai/gpt-5.6-sol" },
+  { name: "Muse Spark 1.1", sourceId: "muse-spark-1.1-high", id: "meta/muse-spark-1.1" },
+  { name: "Kimi K3", sourceId: "kimi-k3-high", id: "moonshotai/kimi-k3" },
+  { name: "Claude Opus 5", sourceId: "claude-opus-5-high", id: "anthropic/claude-opus-5" },
 ];
 
 // ===========================================================================
@@ -204,19 +211,19 @@ export const HLE_MODELS = [
 //     proprietary "pro" endpoints, etc.).
 //   • Keep it ordered strongest-first so the showcase leads with the best.
 //
-// Last reviewed: 2026-07-24 · sources: Artificial Analysis open-weights
+// Last reviewed: 2026-08-27 · sources: Artificial Analysis open-weights
 // Intelligence Index (https://artificialanalysis.ai/models/open-source) +
 // OpenRouter usage rankings (https://openrouter.ai/rankings).
 // ===========================================================================
 export const OSS_MODELS = [
-  { name: "GLM-5.2", id: "z-ai/glm-5.2", note: "Z AI (Zhipu) — #1 open-weight on the AA Intelligence Index." },
+  { name: "GLM-5.2", id: "z-ai/glm-5.2", note: "Z AI (Zhipu) — newest GLM with open weights linked by OpenRouter." },
   { name: "MiniMax-M3", id: "minimax/minimax-m3", note: "MiniMax — #2 open-weight." },
-  { name: "DeepSeek V4 Pro", id: "deepseek/deepseek-v4-pro", note: "DeepSeek — 1.6T-param MoE flagship." },
+  { name: "DeepSeek V4 Pro 0813", id: "deepseek/deepseek-v4-pro-0813", note: "DeepSeek — GA release of its V4 Pro flagship." },
   { name: "Kimi K2.6", id: "moonshotai/kimi-k2.6", note: "Moonshot — strongest open-weight Kimi (K3 is not open-weight)." },
   { name: "MiMo-V2.5-Pro", id: "xiaomi/mimo-v2.5-pro", note: "Xiaomi — also the most-used open model on OpenRouter." },
   { name: "Hunyuan 3", id: "tencent/hy3", note: "Tencent — high intelligence and very widely used." },
   { name: "Nemotron 3 Ultra", id: "nvidia/nemotron-3-ultra-550b-a55b", note: "NVIDIA — 550B open flagship." },
-  { name: "Qwen3.6 27B", id: "qwen/qwen3.6-27b", note: "Alibaba — best open Qwen (the 'Max' tiers are API-only)." },
+  { name: "Qwen3.8 27B", id: "qwen/qwen3.8-27b", note: "Alibaba — open-weight Qwen3.8 dense model (the 'Max' tiers are API-only)." },
   { name: "Mistral Medium 3.5", id: "mistralai/mistral-medium-3-5", note: "Mistral — strongest open Mistral." },
   { name: "Gemma 4 31B", id: "google/gemma-4-31b-it", note: "Google — flagship open Gemma." },
   { name: "gpt-oss-120b", id: "openai/gpt-oss-120b", note: "OpenAI — its open-weight release." },
@@ -240,7 +247,7 @@ export const OSS_MODELS = [
 //     possible, and refresh from the AA Intelligence Index every few months.
 //   • `node scripts/check-frontier-models.mjs` also validates these ids.
 //
-// Last reviewed: 2026-07-28 · source: Artificial Analysis Intelligence Index
+// Last reviewed: 2026-08-27 · source: Artificial Analysis Intelligence Index
 // v4.1 (https://artificialanalysis.ai/leaderboards/models).
 // ===========================================================================
 export const GLOBAL_LEADERS = [
@@ -250,7 +257,7 @@ export const GLOBAL_LEADERS = [
     models: [
       { name: "Claude Opus 5", id: "anthropic/claude-opus-5", note: "Anthropic — #1 on the AA Intelligence Index." },
       { name: "GPT-5.6 Sol", id: "openai/gpt-5.6-sol", note: "OpenAI — #2 on the AA Intelligence Index." },
-      { name: "Grok 4.5", id: "x-ai/grok-4.5", note: "xAI — top-10; the US's third distinct frontier lab (Google's Gemini is a close runner-up)." },
+      { name: "Grok 4.6", id: "x-ai/grok-4.6", note: "xAI — newest Grok flagship; the US's third distinct frontier lab (Google's Gemini is a close runner-up)." },
     ],
   },
   {
@@ -258,8 +265,8 @@ export const GLOBAL_LEADERS = [
     flag: "🇨🇳",
     models: [
       { name: "Kimi K3", id: "moonshotai/kimi-k3", note: "Moonshot AI — the strongest non-US model and #1 open-weight worldwide." },
-      { name: "GLM-5.2", id: "z-ai/glm-5.2", note: "Z.ai (Zhipu) — #2 open-weight." },
-      { name: "Qwen3.7 Max", id: "qwen/qwen3.7-max", note: "Alibaba — flagship Qwen (DeepSeek V4 Pro is a close 4th)." },
+      { name: "GLM-5.3", id: "z-ai/glm-5.3", note: "Z.ai (Zhipu) — newest GLM generation on OpenRouter." },
+      { name: "Qwen3.8 Max", id: "qwen/qwen3.8-max", note: "Alibaba — latest GA flagship Qwen." },
     ],
   },
   {
@@ -281,7 +288,9 @@ export const GLOBAL_LEADERS = [
 export function buildModelGroups(models) {
   const available = (models || []).filter((m) => m.available);
   const exclude = /(image|embed|tts|audio|whisper|vision|moderation|rerank|guard)/i;
-  const chat = available.filter((m) => !exclude.test(m.id));
+  const chat = available.filter(
+    (m) => !exclude.test(m.id) && !m.id.startsWith("~") && !m.id.endsWith(":batch")
+  );
   const idl = (m) => m.id.toLowerCase();
   const price = (m) => {
     const c = Number(m.pricing?.completion);
