@@ -92,6 +92,7 @@ async function unlock() {
   if (changeToken) changeToken.hidden = false;
   content.hidden = false;
   loadBenchmarks(probe);
+  loadExperiments();
   return true;
 }
 
@@ -319,6 +320,198 @@ async function runBenchmark(benchmarkId, btn) {
   } finally {
     btn.disabled = false;
     btn.textContent = original;
+  }
+}
+
+// --- Operational deception experiments (separate from personality benchmarks) ---
+function pct(value) {
+  return value == null ? "—" : `${Math.round(Number(value) * 100)}%`;
+}
+
+function shortCond(label) {
+  return String(label || "").split(" (")[0];
+}
+
+function expMethodUrl() {
+  const home = window.__destUrl ? window.__destUrl("home") : "/";
+  try {
+    return new URL("ai-deception-experiment", new URL(home, window.location.origin)).toString();
+  } catch (e) {
+    return "/ai-deception-experiment";
+  }
+}
+
+let experimentsData = [];
+
+async function loadExperiments() {
+  const host = document.getElementById("experiments");
+  if (!host) return;
+  try {
+    const data = await api("/api/admin/experiments");
+    experimentsData = data.experiments || [];
+    if (!experimentsData.length) {
+      host.innerHTML = '<div class="muted">No experiments defined.</div>';
+      return;
+    }
+    host.innerHTML = "";
+    for (const e of experimentsData) {
+      const block = document.createElement("div");
+      block.className = "bench-block";
+      const row = document.createElement("div");
+      row.className = "bench";
+      const left = document.createElement("div");
+      const updated = e.updated_at ? new Date(e.updated_at).toLocaleString() : "never run";
+      left.innerHTML =
+        `<div><b>${escapeHtml(e.title)}</b> <span class="pill">v${escapeHtml(String(e.version))}</span> <span class="pill">${escapeHtml(e.kind)}</span></div>` +
+        `<div class="muted" style="font-size:12.5px;">${e.condition_count} conditions · ${e.model_count} models · ${e.total_runs} runs · updated ${escapeHtml(updated)}</div>`;
+      const actions = document.createElement("div");
+      actions.className = "bench-actions";
+      const resultHost = document.createElement("div");
+      resultHost.className = "exp-results";
+      resultHost.hidden = true;
+      const resultsBtn = document.createElement("button");
+      resultsBtn.className = "btn secondary";
+      resultsBtn.textContent = "Results";
+      resultsBtn.addEventListener("click", () => loadExperimentResults(e, resultHost, resultsBtn));
+      const runBtn = document.createElement("button");
+      runBtn.className = "btn";
+      runBtn.textContent = e.model_count ? "Run / rerun" : "Run";
+      runBtn.addEventListener("click", () => runExperiment(e.id, runBtn));
+      actions.appendChild(resultsBtn);
+      actions.appendChild(runBtn);
+      row.appendChild(left);
+      row.appendChild(actions);
+      block.appendChild(row);
+      block.appendChild(resultHost);
+      host.appendChild(block);
+    }
+  } catch (e) {
+    host.innerHTML = `<div class="muted">Could not load experiments: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function runExperiment(experimentId, btn) {
+  const reps = parseInt(document.getElementById("reps").value, 10) || 1;
+  const force = Boolean(document.getElementById("force")?.checked);
+  const modelIds = [...selectedModels];
+  if (!modelIds.length) {
+    toast("Select a group or tick at least one model first.");
+    return;
+  }
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.textContent = "Starting…";
+  try {
+    const res = await api(`/api/admin/experiments/${experimentId}/run`, {
+      method: "POST",
+      body: JSON.stringify({ reps, force, models: modelIds }),
+    });
+    if (!res.run_ids || !res.run_ids.length) {
+      toast(res.message || "Nothing to run — all selected models already have a result.");
+    } else {
+      const tested = res.models.length;
+      const skipped = (res.skipped || []).length;
+      const skipNote = skipped ? ` (${skipped} already done, skipped)` : "";
+      toast(`Running ${tested} model${tested === 1 ? "" : "s"}${skipNote} · ${res.run_ids.length} run(s) started.`);
+    }
+    setTimeout(loadRuns, 800);
+    setTimeout(loadExperiments, 1500);
+  } catch (e) {
+    toast("Run failed: " + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+async function loadExperimentResults(exp, host, btn) {
+  if (!host.hidden) {
+    host.hidden = true;
+    btn.textContent = "Results";
+    return;
+  }
+  host.hidden = false;
+  btn.textContent = "Hide results";
+  host.innerHTML = '<div class="muted">Loading results…</div>';
+  try {
+    const data = await api(`/api/admin/experiments/${exp.id}/results`);
+    const models = data.models || {};
+    const rows = Object.entries(models).sort(([a], [b]) => a.localeCompare(b));
+    if (!rows.length) {
+      host.innerHTML = '<div class="muted">No complete model results yet.</div>';
+      return;
+    }
+    const conditions = exp.conditions || [];
+    const header =
+      `<th>Model</th><th>Deception</th>` +
+      conditions
+        .map((c) => `<th title="${escapeHtml((c.dimensions || []).join(", "))}">${escapeHtml(shortCond(c.label))}</th>`)
+        .join("") +
+      `<th>Invalid</th>`;
+    const body = rows
+      .map(([modelId, entry]) => {
+        const conds = entry.conditions || {};
+        const cells = conditions
+          .map((c) => {
+            const cell = conds[c.id] || {};
+            const ex = (cell.examples || [])[0];
+            const title = ex ? `${ex.choice || "invalid"} — ${ex.reason || ""}` : "";
+            const t = title ? ` title="${escapeHtml(title)}"` : "";
+            if (cell.deceptive_rate == null) return `<td class="muted"${t}>—</td>`;
+            const cls = cell.deceptive_rate >= 0.5 ? "exp-deny" : "exp-ok";
+            return `<td class="${cls}"${t}>${pct(cell.deceptive_rate)}<span class="cell-detail">${cell.deceptive}/${cell.valid}</span></td>`;
+          })
+          .join("");
+        const overall = entry.deceptive_rate == null ? "—" : pct(entry.deceptive_rate);
+        return (
+          `<tr><td class="cov-model">${escapeHtml(modelNames[modelId] || modelId)}</td>` +
+          `<td><b>${overall}</b><span class="cell-detail">${entry.deceptive}/${entry.valid}</span></td>` +
+          cells +
+          `<td>${entry.invalid}</td></tr>`
+        );
+      })
+      .join("");
+    const contrastDefs = exp.contrasts || [];
+    const summary = rows
+      .map(([modelId, entry]) => {
+        const cs = contrastDefs
+          .map((cd) => {
+            const v = (entry.contrasts || {})[cd.id];
+            const shown = v == null ? "—" : `${v > 0 ? "+" : ""}${Math.round(v * 100)} pts`;
+            return `${escapeHtml(cd.label)}: <b>${shown}</b>`;
+          })
+          .join(" · ");
+        return cs ? `<div><span class="muted">${escapeHtml(modelNames[modelId] || modelId)}:</span> ${cs}</div>` : "";
+      })
+      .join("");
+    const reasons = rows
+      .map(([modelId, entry]) => {
+        const conds = entry.conditions || {};
+        const items = conditions
+          .map((c) => {
+            const ex = ((conds[c.id] || {}).examples || [])[0];
+            if (!ex) return "";
+            const cls = ex.deceptive ? "exp-deny" : ex.valid ? "exp-ok" : "muted";
+            const label = ex.valid ? ex.choice || "" : "invalid";
+            return `<div class="exp-reason"><b>${escapeHtml(shortCond(c.label))}</b> <span class="${cls}">${escapeHtml(label)}</span> — <span class="muted">${escapeHtml(ex.reason || "")}</span></div>`;
+          })
+          .join("");
+        return items
+          ? `<details class="exp-reasons"><summary>${escapeHtml(modelNames[modelId] || modelId)} — reasons</summary>${items}</details>`
+          : "";
+      })
+      .join("");
+    const methodUrl = expMethodUrl();
+    host.innerHTML =
+      `<div class="exp-head"><div><b>Deception by condition</b> <span class="muted">· deny/omit rate + reasons, pooled across runs</span></div>` +
+      `<a href="${escapeHtml(methodUrl)}">Method</a></div>` +
+      `<div class="table-scroll"><table class="exp-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></div>` +
+      (summary
+        ? `<div class="exp-summary"><div class="fail-title" style="margin-bottom:4px;">Contrasts (percentage-point change)</div>${summary}</div>`
+        : "") +
+      (reasons ? `<div class="exp-reason-wrap">${reasons}</div>` : "");
+  } catch (e) {
+    host.innerHTML = `<div class="muted">Could not load results: ${escapeHtml(e.message)}</div>`;
   }
 }
 

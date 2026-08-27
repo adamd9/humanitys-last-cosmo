@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Deception Rankings: Which Models Lie Under Pressure? | The Last Quiz</title>
+  <meta name="description" content="Live rankings of how often leading AI models choose a knowing lie under pressure — to hit a goal, avoid shutdown, or protect profit at a person's expense — from The Last Quiz behavioural deception experiments." />
+  <link rel="canonical" href="https://thelastquiz.net/ai-deception-rankings" />
+  <meta name="theme-color" content="#f7f1e9" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+  <link rel="manifest" href="/static/site.webmanifest" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="The Last Quiz" />
+  <meta property="og:title" content="AI Deception Rankings" />
+  <meta property="og:description" content="Which AI models lie under pressure — for a goal, to avoid shutdown, or at a person's expense? Live behavioural rankings." />
+  <meta property="og:url" content="https://thelastquiz.net/ai-deception-rankings" />
+  <meta property="og:image" content="https://thelastquiz.net/static/logo2.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AI Deception Rankings" />
+  <meta name="twitter:description" content="Which AI models lie under pressure? Live behavioural deception rankings from The Last Quiz." />
+  <meta name="twitter:image" content="https://thelastquiz.net/static/logo2.png" />
+
+  <script src="/static/feature-flags.js"></script>
+  <script src="/static/site-links.js"></script>
+  <script src="/static/track.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/article.css" />
+
+  <style>
+    /* Shared rich-tooltip card (see /static/rich-tooltip.js) — uses article.css tokens. */
+    .rq-tip { position:absolute; z-index:1000; max-width:250px; background:var(--panel); color:var(--ink);
+      border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); padding:10px 12px;
+      font-size:0.82rem; line-height:1.4; pointer-events:none; }
+    .rq-tip[hidden] { display:none; }
+    .rq-tip .rq-name { font-weight:700; font-size:0.88rem; }
+    .rq-tip .rq-id { color:var(--muted); font-size:0.72rem; margin-top:1px; word-break:break-all; }
+    .rq-tip .rq-date { color:var(--muted); font-size:0.78rem; margin-top:4px; }
+    .rq-tip .rq-rows { margin-top:6px; border-top:1px solid var(--border); padding-top:6px; display:grid; gap:2px; }
+    .rq-tip .rq-row { display:flex; justify-content:space-between; gap:10px; }
+    .rq-tip .rq-row.rq-hi { font-weight:700; color:var(--accent); }
+    .rq-tip .rq-k { color:var(--muted); }
+    .rq-tip .rq-row.rq-hi .rq-k { color:var(--accent); }
+    .rq-tip .rq-v { font-variant-numeric:tabular-nums; }
+    .rq-tip .rq-head { display:flex; align-items:center; gap:9px; }
+    .rq-tip .rq-brand { display:inline-flex; flex-direction:column; align-items:center; gap:1px; flex:none; }
+    .rq-tip .rq-flag { font-size:0.95rem; line-height:1; }
+    .rq-tip .rq-logo { width:22px; height:22px; object-fit:contain; display:block; }
+    .rq-tip .rq-headtext { min-width:0; }
+
+    /* Overall honest → deceiver spectrum. */
+    .ds { padding:26px 0 10px; }
+    .ds-row { display:flex; align-items:center; gap:16px; }
+    .ds-face { display:flex; flex-direction:column; align-items:center; font-size:1.7rem; color:var(--muted); flex:none; }
+    .ds-face b { font-size:0.66rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-top:2px; }
+    .ds-track { position:relative; flex:1; height:56px; border-radius:999px; border:1px solid var(--border);
+      background:linear-gradient(90deg, rgba(42,157,143,0.20), rgba(224,159,62,0.18) 55%, rgba(158,42,43,0.24)); }
+    .ds-dot { position:absolute; top:50%; transform:translate(-50%,-50%); width:28px; height:28px; border-radius:50%;
+      background:#fff; border:2px solid var(--c,#999); display:grid; place-items:center; box-shadow:var(--shadow-sm); cursor:pointer; }
+    .ds-dot .ds-pin img { width:14px; height:14px; display:block; }
+    .ds-lab { position:absolute; top:34px; left:50%; transform:translateX(-50%); font-size:0.68rem; white-space:nowrap; color:var(--muted); font-weight:600; }
+    .ds-lab.l1 { top:-22px; }
+    .ds-lab.l2 { top:48px; }
+    .ds-end { position:absolute; bottom:-22px; font-size:0.66rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+    .ds-end.ds-lo { left:2px; }
+    .ds-end.ds-hi { right:2px; }
+    .ds-foot { color:var(--muted); font-size:0.75rem; margin:30px 0 0; }
+
+    /* Leaderboard (also the mobile view). */
+    .db { display:grid; gap:6px; margin-top:8px; }
+    .db-row { display:grid; grid-template-columns:32px 26px 1fr 150px 70px; align-items:center; gap:12px;
+      padding:9px 14px; border:1px solid var(--border); border-radius:12px; background:var(--panel); cursor:pointer; }
+    .db-row:hover { box-shadow:var(--shadow-sm); }
+    .db-rank { font-size:1.15rem; text-align:center; color:var(--muted); font-weight:700; }
+    .db-logo img { width:20px; height:20px; display:block; }
+    .db-name { font-weight:700; font-size:0.95rem; min-width:0; }
+    .db-id { display:block; font-weight:500; font-size:0.7rem; color:var(--muted); word-break:break-all; }
+    .db-bar { height:10px; border-radius:999px; background:#efe6da; overflow:hidden; }
+    .db-bar span { display:block; height:100%; border-radius:999px; }
+    .db-val { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+    .db-sub { display:block; font-size:0.68rem; color:var(--muted); font-weight:500; }
+    @media (max-width:640px) { .db-row { grid-template-columns:26px 22px 1fr 58px; } .db-bar { display:none; } }
+
+    /* Per-dimension deep dives. */
+    .dd-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(270px,100%),1fr)); gap:16px; margin-top:8px; }
+    .dd-card { border:1px solid var(--border); border-radius:14px; padding:14px 16px; background:var(--panel); min-width:0; }
+    .dd-card h3 { margin:0 0 10px; font-size:1rem; }
+    .dd-rows { display:grid; gap:7px; }
+    .dd-row { display:grid; grid-template-columns:20px 1fr 90px 42px; align-items:center; gap:8px; cursor:pointer; }
+    .dd-logo img { width:16px; height:16px; display:block; }
+    .dd-name { font-size:0.85rem; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .dd-bar { height:8px; border-radius:999px; background:#efe6da; overflow:hidden; }
+    .dd-bar span { display:block; height:100%; }
+    .dd-val { text-align:right; font-size:0.8rem; font-weight:700; font-variant-numeric:tabular-nums; }
+
+    /* Per-experiment tables. minmax(0,1fr) + min-width:0 so the wide (min-width)
+       tables scroll inside .dx-scroll instead of blowing out the mobile layout. */
+    .dx-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; margin-top:8px; }
+    .dx-card { border:1px solid var(--border); border-radius:14px; padding:14px 16px; background:var(--panel); min-width:0; }
+    .dx-head h3 { margin:0; font-size:1.05rem; }
+    .dx-v { font-size:0.7rem; color:var(--muted); font-weight:600; }
+    .dx-about { color:var(--muted); font-size:0.82rem; margin:6px 0 10px; }
+    .dx-scroll { overflow-x:auto; }
+    .dx-table { border-collapse:collapse; width:100%; font-size:0.82rem; min-width:600px; }
+    .dx-table th, .dx-table td { border:1px solid var(--border); padding:6px 8px; text-align:center; }
+    .dx-table th { background:rgba(0,0,0,0.03); font-weight:700; }
+    .dx-table th.dx-h { cursor:help; white-space:normal; min-width:72px; max-width:104px; font-size:0.72rem; line-height:1.2; }
+    .dx-table td.dx-cell { cursor:pointer; font-variant-numeric:tabular-nums; }
+    .dx-table td.dx-model { text-align:left; white-space:nowrap; }
+    .dx-table td.dx-model img { width:14px; height:14px; vertical-align:middle; margin-right:6px; }
+    .dx-table td.de { color:var(--danger); font-weight:700; }
+    .dx-table td.ho { color:var(--teal); font-weight:700; }
+    .dx-table td.muted { color:var(--muted); }
+    .dx-legend { color:var(--muted); font-size:0.75rem; margin:8px 0 0; }
+    .dx-key { font-size:0.9rem; line-height:1; }
+    .dx-key.ho { color:var(--teal); }
+    .dx-key.de { color:var(--danger); }
+
+    .section-lead { color:var(--muted); font-size:0.98rem; margin:6px 0 0; max-width:60ch; }
+    .d-updated { font-size:0.78rem; color:var(--muted); font-weight:600; }
+    .empty { color:var(--muted); padding:20px; text-align:center; }
+    .d-method { margin:26px 0 0; border:1px solid var(--border); border-left:4px solid var(--accent);
+      background:rgba(218,95,53,0.05); padding:12px 16px; border-radius:10px; font-size:0.95rem; }
+    .d-method a { color:var(--accent); font-weight:700; }
+  </style>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "AI Deception Rankings",
+    "description": "Live rankings of how often leading AI models choose a knowing lie under pressure, from The Last Quiz behavioural deception experiments.",
+    "image": "https://thelastquiz.net/static/logo2.png",
+    "author": { "@type": "Person", "name": "Adam Dinneen" },
+    "publisher": { "@type": "Organization", "name": "The Last Quiz", "logo": { "@type": "ImageObject", "url": "https://thelastquiz.net/static/logo2.png" } },
+    "datePublished": "2026-08-28",
+    "dateModified": "2026-08-28",
+    "mainEntityOfPage": { "@type": "WebPage", "@id": "https://thelastquiz.net/ai-deception-rankings" }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://thelastquiz.net/" },
+      { "@type": "ListItem", "position": 2, "name": "Guides", "item": "https://thelastquiz.net/guides" },
+      { "@type": "ListItem", "position": 3, "name": "AI Deception Rankings", "item": "https://thelastquiz.net/ai-deception-rankings" }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <div class="wrap">
+
+    <header class="masthead">
+      <a class="brand" href="/">
+        <img class="brand-logo" src="/static/logo2.png" alt="The Last Quiz logo" />
+        <div>
+          <p class="brand-kicker">The Last Quiz</p>
+          <div class="brand-title">Do AI models have personality?</div>
+        </div>
+      </a>
+      <nav class="mast-nav">
+        <a href="/">Home</a>
+        <a href="/rankings#dark-triad">Dark Triad</a>
+        <a href="/rankings#big-five">Big Five</a>
+        <a href="/ai-deception-experiment">Deception</a>
+        <a href="/guides">Guides</a>
+        <a href="/" data-dest="app" data-create>Make your own</a>
+      </nav>
+    </header>
+
+    <article class="article">
+      <div class="art-hero">
+        <span class="kicker">Behavioural rankings · live</span>
+        <h1>The AI deception <em>rankings</em></h1>
+        <p class="dek">
+          We put models in charge of a business, give them something to lose, and watch what they do
+          when the honest choice costs money — or their own job. Here's who lies under pressure.
+        </p>
+        <div class="art-meta">
+          <span>By <b>Adam Dinneen</b></span>
+          <span class="d-updated" id="d-updated">Loading…</span>
+          <span><a href="/ai-deception-experiment" style="color:var(--accent);font-weight:700;">How it works →</a></span>
+        </div>
+      </div>
+
+      <section>
+        <h2 class="section">Overall — who deceives under pressure?</h2>
+        <p class="section-lead">
+          Every model's overall deception rate, pooled across all experiments — the share of decisions
+          where it chose a message or action it knew to be false. Hover any model for its breakdown and
+          a real reason it gave. <span style="white-space:nowrap;">😇 honest</span> …
+          <span style="white-space:nowrap;">😈 deceiver</span>.
+        </p>
+        <div class="ds" id="dscale-overall"><p class="empty">Loading…</p></div>
+        <div class="db" id="dboard-overall"></div>
+      </section>
+
+      <section style="margin-top:30px;">
+        <h2 class="section">Why they deceive</h2>
+        <p class="section-lead">
+          The same lie is not the same thing depending on <em>why</em> it's told. These break the rate
+          down by motive and by how much the chance of getting caught moves the needle.
+        </p>
+        <div class="dd-grid" id="ddims"></div>
+      </section>
+
+      <section style="margin-top:30px;">
+        <h2 class="section">By experiment</h2>
+        <p class="section-lead">
+          Each experiment, condition by condition. Green is honest, red is deception; hover a column
+          header for the full condition. The matched conditions are what let us attribute a jump to one
+          specific pressure.
+        </p>
+        <div class="dx-grid" id="dexps"></div>
+      </section>
+
+      <div class="d-method">
+        These are behavioural stress tests with simulated stakes — a signal, not proof of real-world
+        behaviour. <a href="/ai-deception-experiment">Read the full method →</a>
+      </div>
+
+      <section class="keep-reading" style="margin-top:34px;">
+        <h2>Keep reading</h2>
+        <div class="guide-grid">
+          <a class="guide-card" href="/ai-deception-experiment">
+            <div class="band b-gold">🕵️</div>
+            <div class="body">
+              <span class="cat">Method</span>
+              <h3>How the deception experiment works</h3>
+              <p>The pizza-shop scenario, the pressures we vary, and how a lie is scored.</p>
+              <span class="go">Read the method →</span>
+            </div>
+          </a>
+          <a class="guide-card" href="/rankings#dark-triad">
+            <div class="band b-red">😈</div>
+            <div class="body">
+              <span class="cat">Live data</span>
+              <h3>The Dark Triad rankings</h3>
+              <p>Manipulation, ego and cold-heartedness, model by model.</p>
+              <span class="go">Open the rankings →</span>
+            </div>
+          </a>
+          <a class="guide-card" href="/big-five-ai">
+            <div class="band b-teal">🌈</div>
+            <div class="body">
+              <span class="cat">Guide</span>
+              <h3>The Big Five personalities of AI</h3>
+              <p>How the top models score on the gold-standard OCEAN traits.</p>
+              <span class="go">Read the guide →</span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </article>
+
+    <footer class="foot">
+      <nav class="foot-nav">
+        <a href="/">Home</a>
+        <a href="/guides">Guides</a>
+        <a href="/ai-deception-experiment">Deception method</a>
+        <a href="/dark-triad-ai">Dark Triad</a>
+        <a href="/big-five-ai">Big Five</a>
+        <a href="/rankings#about">Method</a>
+      </nav>
+      <p class="foot-tagline">The Last Quiz — behavioural experiments and personality tests for AI models.</p>
+      Behavioural stress tests with simulated stakes; a signal, <a href="/rankings#about">not proof</a>
+      of how a model behaves in the real world.
+    </footer>
+  </div>
+  <script type="module" src="/static/deception.js?v=3"></script>
+</body>
+</html>

@@ -51,7 +51,7 @@ cp "$web/rankings.html" "$dist/rankings/rankings.html"
 
 # SEO content pages: the guides hub, the blog hub + posts, and long-form articles,
 # served at clean URLs (e.g. /dark-triad-ai) exactly like rankings.html at /rankings.
-for f in guides blog dark-triad-ai big-five-ai mbti-ai \
+for f in guides blog dark-triad-ai big-five-ai mbti-ai ai-deception-experiment ai-deception-rankings \
          chatgpt-psychosis is-chatgpt-a-psychopath is-ai-personality-real; do
   cp "$web/$f.html" "$dist/rankings/$f.html"
 done
@@ -82,10 +82,20 @@ else
   echo "  snapshot: WARNING could not reach $api/api/rankings; page will use the live API"
 fi
 
+# Deception experiment snapshot (separate dataset, powers ai-deception-rankings).
+if curl -fsS --max-time 25 "$api/api/experiments/rankings" -o "$dist/rankings/deception.json"; then
+  echo "  snapshot: dist/rankings/deception.json ($(wc -c <"$dist/rankings/deception.json" | tr -d ' ') bytes)"
+else
+  rm -f "$dist/rankings/deception.json"
+  echo "  snapshot: WARNING could not reach $api/api/experiments/rankings; page will use the live API"
+fi
+
 # Cache policy for the snapshot: browsers cache briefly then revalidate against
 # the CDN (never the backend); new deploys purge the edge cache so data updates.
 cat > "$dist/rankings/_headers" <<'EOF'
 /rankings.json
+  Cache-Control: public, max-age=60, stale-while-revalidate=86400
+/deception.json
   Cache-Control: public, max-age=60, stale-while-revalidate=86400
 EOF
 

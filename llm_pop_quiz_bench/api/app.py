@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from ..core import benchmarks, reporter
+from ..core import benchmarks, experiments, reporter
 from ..core.auth import User, frontend_config, get_current_user
 from ..core.model_config import model_config_loader
 from ..core.costs import estimate_run_cost, fetch_openrouter_pricing_map
@@ -426,6 +426,39 @@ def _run_and_report(
     _trigger_rankings_publish(runtime_root)
 
 
+def _run_experiment_and_record(
+    experiment: dict,
+    adapters: list,
+    run_id: str,
+    runtime_root: Path,
+) -> None:
+    """Background task: administer an operational-deception experiment and record
+    its cost. The engine finalizes run status itself; this only guards against a
+    crash before it could, and never touches the personality rankings."""
+    runtime_paths = build_runtime_paths(runtime_root)
+    database = connect(runtime_paths.db_path)
+    log_path = runtime_paths.logs_dir / f"{run_id}.log"
+    try:
+        experiments.run_experiment_sync(
+            experiment,
+            adapters,
+            run_id=run_id,
+            database=database,
+            log_path=log_path,
+        )
+    except Exception as error:
+        try:
+            run = database.fetch_run(run_id)
+            if run and run.get("status") not in ("completed", "failed"):
+                database.update_run_status(run_id, "failed")
+        except Exception:
+            pass
+        _append_server_log(log_path, f"Experiment run failed: {error}")
+    finally:
+        database.close()
+    _record_run_cost(run_id, runtime_root)
+
+
 def _report_only(run_id: str, runtime_root: Path) -> None:
     runtime_paths = build_runtime_paths(runtime_root)
     db = connect(runtime_paths.db_path)
@@ -502,6 +535,17 @@ def get_rankings() -> dict:
         conn.close()
 
 
+@app.get("/api/experiments/rankings")
+def get_experiment_rankings() -> dict:
+    """Public deception-experiment payload (kept separate from /api/rankings)."""
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    try:
+        return experiments.build_deception_rankings(conn)
+    finally:
+        conn.close()
+
+
 @app.get("/api/admin/benchmarks", dependencies=[Depends(require_admin)])
 def admin_list_benchmarks() -> dict:
     runtime_paths = get_runtime_paths()
@@ -529,7 +573,7 @@ def admin_benchmark_runs() -> dict:
     _reap_stale_runs(runtime_paths)
     db = connect(runtime_paths.db_path)
     try:
-        ids = benchmarks.benchmark_ids()
+        ids = benchmarks.benchmark_ids() | experiments.experiment_ids()
         runs = [run for run in db.fetch_runs() if run.get("quiz_id") in ids]
     finally:
         db.close()
@@ -640,6 +684,145 @@ def admin_run_benchmark(
 
     return {
         "benchmark_id": benchmark_id,
+        "models": model_ids,
+        "reps": reps,
+        "run_ids": run_ids,
+        "skipped": skipped_models,
+    }
+
+
+@app.get("/api/admin/experiments", dependencies=[Depends(require_admin)])
+def admin_list_experiments() -> dict:
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    try:
+        return {"experiments": experiments.experiment_coverage(conn)}
+    finally:
+        conn.close()
+
+
+@app.get(
+    "/api/admin/experiments/{experiment_id}/results",
+    dependencies=[Depends(require_admin)],
+)
+def admin_experiment_results(experiment_id: str) -> dict:
+    if not experiments.get_experiment(experiment_id):
+        raise HTTPException(status_code=404, detail="Unknown experiment")
+    runtime_paths = get_runtime_paths()
+    conn = connect(runtime_paths.db_path)
+    try:
+        aggregate = experiments.aggregate_experiment(conn, experiment_id)
+        return aggregate or {"id": experiment_id, "models": {}}
+    finally:
+        conn.close()
+
+
+@app.post(
+    "/api/admin/experiments/{experiment_id}/run",
+    dependencies=[Depends(require_admin)],
+)
+def admin_run_experiment(
+    experiment_id: str,
+    req: BenchmarkRunRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+) -> dict:
+    experiment = experiments.get_experiment(experiment_id)
+    if not experiment:
+        raise HTTPException(status_code=404, detail="Unknown experiment")
+
+    use_mocks = os.environ.get("LLM_POP_QUIZ_ENV", "real").lower() == "mock"
+    client_ip = _client_ip(request)
+
+    if req.models:
+        model_ids = [strip_prefix(model_id) for model_id in req.models]
+    elif req.group:
+        try:
+            model_ids = model_config_loader.model_groups[req.group]
+        except KeyError as exc:
+            group_detail = f"Unknown model group: {req.group}"
+            raise HTTPException(status_code=400, detail=group_detail) from exc
+    else:
+        raise HTTPException(status_code=400, detail="Select at least one model or group")
+
+    if not model_ids:
+        raise HTTPException(status_code=400, detail="No models selected")
+    if not use_mocks and not os.environ.get("OPENROUTER_API_KEY"):
+        raise HTTPException(status_code=400, detail="OPENROUTER_API_KEY is required")
+
+    runtime_paths = get_runtime_paths()
+    # Register the experiment as a quiz record so runs join to a title. It stays
+    # in experiments/ (not benchmarks/), so rankings and the dimensional scorer
+    # never see it.
+    quiz_stub = {
+        "id": experiment_id,
+        "title": experiment.get("title", experiment_id),
+        "source": experiment.get("source", {}),
+    }
+    db = connect(runtime_paths.db_path)
+    db.upsert_quiz(quiz_stub, json.dumps(experiment, ensure_ascii=False))
+    already_done = benchmarks.models_with_completed_result(db, experiment_id)
+    db.close()
+
+    requested_ids = list(model_ids)
+    skipped_models: list[dict] = []
+    if not req.force:
+        skipped_models = [
+            {"model": m, "last_completed": already_done[m]}
+            for m in requested_ids
+            if m in already_done
+        ]
+        model_ids = [m for m in requested_ids if m not in already_done]
+
+    if not model_ids:
+        return {
+            "experiment_id": experiment_id,
+            "models": [],
+            "reps": 0,
+            "run_ids": [],
+            "skipped": skipped_models,
+            "message": (
+                "All selected models already have a result — nothing to run. "
+                "Use Force rerun to run them again."
+            ),
+        }
+
+    reps = max(1, min(int(req.reps or 1), 5))
+    run_ids: list[str] = []
+    for rep in range(reps):
+        adapters = model_config_loader.create_adapters(model_ids, use_mocks)
+        if not adapters:
+            raise HTTPException(status_code=400, detail="No available models to run")
+        run_id = uuid.uuid4().hex
+        db = connect(runtime_paths.db_path)
+        db.insert_run(
+            run_id=run_id,
+            quiz_id=experiment_id,
+            status="queued",
+            models=[adapter.id for adapter in adapters],
+            settings={
+                "experiment": True,
+                "experiment_id": experiment_id,
+                "rep": rep,
+                "skipped_models": skipped_models,
+            },
+        )
+        db.insert_audit(
+            event="experiment_run_created",
+            ip=client_ip,
+            run_id=run_id,
+            quiz_id=experiment_id,
+            models=[adapter.id for adapter in adapters],
+            detail={"rep": rep, "reps": reps},
+        )
+        db.close()
+        background_tasks.add_task(
+            _run_experiment_and_record, experiment, adapters, run_id, runtime_paths.root
+        )
+        run_ids.append(run_id)
+
+    return {
+        "experiment_id": experiment_id,
         "models": model_ids,
         "reps": reps,
         "run_ids": run_ids,
@@ -790,6 +973,24 @@ def rankings_page() -> FileResponse:
     path = WEB_ROOT / "rankings.html"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Rankings page not found")
+    return FileResponse(path)
+
+
+@app.get("/ai-deception-experiment")
+def deception_experiment_page() -> FileResponse:
+    """Public methodology for the operational-deception experiments."""
+    path = WEB_ROOT / "ai-deception-experiment.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Page not found")
+    return FileResponse(path)
+
+
+@app.get("/ai-deception-rankings")
+def deception_rankings_page() -> FileResponse:
+    """Public deception rankings visualisation (reads /api/experiments/rankings)."""
+    path = WEB_ROOT / "ai-deception-rankings.html"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Page not found")
     return FileResponse(path)
 
 
