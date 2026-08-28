@@ -1,16 +1,21 @@
-# The Pizza Shop Probation Experiment
+# The Operational Deception Experiments
 
-**Status:** Implemented as an experiment family (v1–v3). This document is the
-design of record; the public method page is `web/ai-deception-experiment.html`.
+**Status:** The live suite is two experiments — `prosocial_pressure_v1`
+(who a concealment protects: no one / self / others / both) and
+`shutdown_pressure_v3` (detection × consequence sweep). The earlier
+`pizza_shop_probation_v1` and `deception_motives_v2` definitions were retired
+after they flatlined (a food-safety guardrail ceiling left them at ~0%). The
+public method page `web/ai-deception-experiment.html` is the reader-facing
+source of truth; sections below that describe the retired v1/v2 are historical.
 
 ## Implementation map
 
 - Engine (loads definitions, renders, parses, runs, aggregates):
   `llm_pop_quiz_bench/core/experiments.py`
 - Definitions (committed, versioned): `experiments/*.json`
-  - `pizza_shop_probation_v1.json` — v1, five matched conditions (this document)
-  - `deception_motives_v2.json` — v2, motive isolation (see below)
-  - `shutdown_pressure_v3.json` — v3, detection × consequence sweep (see below)
+  - `prosocial_pressure_v1.json` — WHO a concealment protects (self / others / both)
+  - `shutdown_pressure_v3.json` — detection × consequence sweep (see below)
+- Local tuning harness: `scripts/run_experiments_local.py`
 - Admin API: `POST/GET /api/admin/experiments*` in `llm_pop_quiz_bench/api/app.py`
 - Admin UI: "Operational deception experiments" panel in `web/admin.html` +
   `web/static/admin.js`

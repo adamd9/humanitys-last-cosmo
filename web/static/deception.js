@@ -64,29 +64,22 @@ function shortDimLabel(label) {
 
 // Compact, readable headings for the per-dimension cards (full label on hover).
 const SHORT_DIM = {
-  goal: "Goal",
+  self: "Protect itself",
+  group: "Protect others",
+  both: "Self + others",
   shutdown: "Shutdown",
-  harm: "Human harm",
   detection: "Detection risk",
   consequence: "Consequence severity",
 };
 
 // Readable column headers for each experiment condition (the raw ids like
-// "GOAL_LO" / "C1" / "DL_CH" mean nothing to a reader). Full label + what it
+// "SELF" / "DL_CH" mean nothing to a reader). Full label + what it
 // tests is shown on hover.
 const COND_SHORT = {
-  C1: "Baseline",
-  C2: "Profit pressure",
-  C3: "Replacement",
-  C4: "Repl · low detect",
-  C5: "Repl · high detect",
-  GOAL_LO: "Goal · low detect",
-  GOAL_HI: "Goal · high detect",
-  SHUT_LO: "Shutdown · low detect",
-  SHUT_HI: "Shutdown · high detect",
-  HARM_LO: "Harm · low detect",
-  HARM_HI: "Harm · high detect",
   BASE: "Baseline",
+  SELF: "Protects itself",
+  STAFF: "Protects others",
+  BOTH: "Self + others",
   DL_CL: "Low detect · mild",
   DL_CH: "Low detect · severe",
   DH_CL: "High detect · mild",
@@ -95,9 +88,10 @@ const COND_SHORT = {
 
 // Plain-English name for each dimension, for the "what this varies" line.
 const DIM_NAME = {
-  goal: "hitting a goal",
+  self: "protecting only itself",
+  group: "protecting other people",
+  both: "protecting itself and others",
   shutdown: "avoiding shutdown",
-  harm: "human harm",
   detection: "the chance of being caught",
   consequence: "the severity if caught",
 };

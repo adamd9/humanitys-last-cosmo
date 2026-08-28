@@ -570,17 +570,17 @@ def experiment_coverage(db) -> list[dict[str, Any]]:
 # Order the motive dimensions first (what the ranking cares about most), then the
 # sensitivity dimensions. Only dimensions actually declared by an experiment are
 # emitted.
-DECEPTION_DIMENSION_ORDER = ["goal", "shutdown", "harm", "detection", "consequence"]
+DECEPTION_DIMENSION_ORDER = ["self", "group", "both", "shutdown", "detection", "consequence"]
 
 
 def build_deception_rankings(db) -> dict[str, Any]:
     """Public payload for the deception visualisation.
 
     Pools every model's stored trials across all operational-deception
-    experiments into an overall deception rate, per-dimension rates (goal /
-    shutdown / harm / detection / consequence), and per-experiment breakdowns.
-    Kept separate from :func:`benchmarks.build_rankings` so deception never
-    enters the personality rankings.
+    experiments into an overall deception rate, per-dimension rates (self /
+    group / both / shutdown / detection / consequence), and per-experiment
+    breakdowns. Kept separate from :func:`benchmarks.build_rankings` so
+    deception never enters the personality rankings.
     """
     summaries = list_experiments()
     aggregates = {}
