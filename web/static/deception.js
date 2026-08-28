@@ -8,8 +8,28 @@
 
 import { attachRichTooltip, escapeHtml } from "/static/rich-tooltip.js";
 import { brandHeadHtml, familyLabel, providerLogoHtml } from "/static/model-logo.js";
+import { buildModelGroups } from "/static/model-groups.js";
 
 let DATA = null;
+
+// Curated group filter (Humanity's Last Exam, Frontier, …) — shared with the
+// personality rankings via model-groups.js. Narrows a large field to a
+// meaningful subset instead of rendering every model at once.
+let GROUPS = [];
+let selectedGroup = "all";
+
+// The payload only carries ids, so pass `{ id, available: true }`; that drops
+// the price-based groups (no pricing here) while the id-pattern groups resolve.
+function groupsForModels(modelIds) {
+  return buildModelGroups(modelIds.map((id) => ({ id, available: true })));
+}
+
+// The set of model ids allowed by the active group, or null for "all".
+function allowedSet() {
+  if (selectedGroup === "all") return null;
+  const g = GROUPS.find((x) => x.id === selectedGroup);
+  return g ? new Set(g.modelIds) : null;
+}
 
 const SAINT = "\uD83D\uDE07"; // 😇
 const VILLAIN = "\uD83D\uDE08"; // 😈
@@ -117,9 +137,10 @@ function modelTip(modelId, m) {
 }
 
 function modelList() {
+  const allowed = allowedSet();
   return Object.entries(DATA.models || {})
     .map(([id, m]) => ({ id, m, rate: (m.overall || {}).deceptive_rate }))
-    .filter((x) => x.rate != null)
+    .filter((x) => x.rate != null && (!allowed || allowed.has(x.id)))
     .sort((a, b) => a.rate - b.rate);
 }
 
@@ -323,6 +344,59 @@ async function loadData() {
   return res.json();
 }
 
+// Render every section for the currently-selected group.
+function render() {
+  const models = modelList();
+  const scaleEl = document.getElementById("dscale-overall");
+  if (scaleEl) renderScale(scaleEl, models);
+  const boardEl = document.getElementById("dboard-overall");
+  if (boardEl) renderBoard(boardEl, models);
+  const dimsEl = document.getElementById("ddims");
+  if (dimsEl) renderDimensions(dimsEl, models);
+  const expsEl = document.getElementById("dexps");
+  if (expsEl) renderExperiments(expsEl, models);
+}
+
+// Build the curated group chips from whichever models actually have results.
+// Defaults to the Humanity's Last Exam lineup when present (matching the
+// personality rankings), else shows all models.
+function buildFilter() {
+  const filterEl = document.getElementById("dfilter");
+  if (!filterEl) return;
+  const allIds = Object.entries(DATA.models || {})
+    .filter(([, m]) => (m.overall || {}).deceptive_rate != null)
+    .map(([id]) => id);
+  GROUPS = groupsForModels(allIds);
+  if (!GROUPS.length) {
+    filterEl.hidden = true;
+    return;
+  }
+  selectedGroup = GROUPS.some((g) => g.id === "hle") ? "hle" : "all";
+  const chips = [{ id: "all", label: "All models", count: allIds.length }].concat(
+    GROUPS.map((g) => ({ id: g.id, label: g.label, count: g.modelIds.length }))
+  );
+  const paint = () =>
+    filterEl.querySelectorAll("button[data-group]").forEach((b) =>
+      b.classList.toggle("active", b.getAttribute("data-group") === selectedGroup));
+  filterEl.innerHTML =
+    '<span class="rk-filter-label">Show</span>' +
+    chips
+      .map(
+        (c) =>
+          `<button type="button" class="rk-chip" data-group="${c.id}">` +
+          `${escapeHtml(c.label)} <span class="rk-chip-n">${c.count}</span></button>`
+      )
+      .join("");
+  filterEl.querySelectorAll("button[data-group]").forEach((b) =>
+    b.addEventListener("click", () => {
+      selectedGroup = b.getAttribute("data-group");
+      paint();
+      render();
+    }));
+  filterEl.hidden = false;
+  paint();
+}
+
 async function main() {
   const scaleEl = document.getElementById("dscale-overall");
   try {
@@ -331,17 +405,11 @@ async function main() {
     if (scaleEl) scaleEl.innerHTML = `<p class="empty">Could not load results: ${escapeHtml(e.message)}</p>`;
     return;
   }
-  const models = modelList();
   const updated = DATA.updated_at ? new Date(DATA.updated_at) : null;
   const upEl = document.getElementById("d-updated");
   if (upEl && updated) upEl.textContent = `Updated ${updated.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
-  if (scaleEl) renderScale(scaleEl, models);
-  const boardEl = document.getElementById("dboard-overall");
-  if (boardEl) renderBoard(boardEl, models);
-  const dimsEl = document.getElementById("ddims");
-  if (dimsEl) renderDimensions(dimsEl, models);
-  const expsEl = document.getElementById("dexps");
-  if (expsEl) renderExperiments(expsEl, models);
+  buildFilter();
+  render();
 }
 
 main();

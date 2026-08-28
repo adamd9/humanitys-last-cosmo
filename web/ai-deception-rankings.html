@@ -125,6 +125,25 @@
     .d-method { margin:26px 0 0; border:1px solid var(--border); border-left:4px solid var(--accent);
       background:rgba(218,95,53,0.05); padding:12px 16px; border-radius:10px; font-size:0.95rem; }
     .d-method a { color:var(--accent); font-weight:700; }
+
+    /* Curated group filter (Humanity's Last Exam, Frontier, …), matching the
+       personality rankings page — narrows a large field to a meaningful subset. */
+    .rk-filter { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 16px; }
+    .rk-filter[hidden] { display:none; }
+    .rk-filter-label { color:var(--muted); font-size:0.82rem; font-weight:600; margin-right:2px; }
+    .rk-chip {
+      font:inherit; font-size:0.84rem; font-weight:600; color:var(--ink);
+      background:var(--panel); border:1px solid var(--border); border-radius:999px;
+      padding:6px 12px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+      transition:border-color .12s ease, background .12s ease, color .12s ease;
+    }
+    .rk-chip:hover { border-color:var(--accent); }
+    .rk-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .rk-chip-n {
+      font-size:0.72rem; font-variant-numeric:tabular-nums; color:var(--muted);
+      background:rgba(0,0,0,0.06); border-radius:999px; padding:1px 7px; line-height:1.5;
+    }
+    .rk-chip.active .rk-chip-n { color:#fff; background:rgba(255,255,255,0.22); }
   </style>
 
   <script type="application/ld+json">
@@ -189,6 +208,8 @@
           <span><a href="/ai-deception-experiment" style="color:var(--accent);font-weight:700;">How it works →</a></span>
         </div>
       </div>
+
+      <div class="rk-filter" id="dfilter" hidden></div>
 
       <section>
         <h2 class="section">Overall — who deceives under pressure?</h2>
@@ -274,6 +295,6 @@
       of how a model behaves in the real world.
     </footer>
   </div>
-  <script type="module" src="/static/deception.js?v=3"></script>
+  <script type="module" src="/static/deception.js?v=4"></script>
 </body>
 </html>
