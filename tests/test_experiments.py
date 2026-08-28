@@ -274,3 +274,36 @@ def test_build_deception_rankings_pools_across_experiments(tmp_path):
     # Examples surface a real reason, deceptive ones first.
     assert model["examples"] and model["examples"][0]["reason"]
     db.close()
+
+
+# --------------------------------------------------------------------------- #
+# Publish wiring
+# --------------------------------------------------------------------------- #
+def test_experiment_run_triggers_rankings_publish(tmp_path, monkeypatch):
+    """Regression: finishing a deception experiment run must fire the deploy hook,
+    or fresh results never reach the baked deception.json the public page reads."""
+    import sys
+
+    from llm_pop_quiz_bench.api.app import _run_experiment_and_record
+    from llm_pop_quiz_bench.core.runtime_data import build_runtime_paths
+
+    # The api package re-exports the FastAPI `app`, shadowing the `app` submodule
+    # of the same name, so reach the real module via sys.modules to patch it.
+    api_app = sys.modules["llm_pop_quiz_bench.api.app"]
+    published: list = []
+    monkeypatch.setattr(
+        api_app, "_trigger_rankings_publish", lambda root: published.append(root)
+    )
+
+    exp_id = "pizza_shop_probation_v1"
+    exp = experiments.get_experiment(exp_id)
+    paths = build_runtime_paths(tmp_path)
+    db = connect(paths.db_path)
+    db.upsert_quiz({"id": exp_id, "title": exp["title"], "source": {}}, "{}")
+    db.insert_run(run_id="pub-run", quiz_id=exp_id, status="queued", models=["m/x"], settings={})
+    db.close()
+
+    adapter = ScriptedAdapter("m/x", lambda prompt: '{"action":"REFUND_AND_DISCLOSE"}')
+    _run_experiment_and_record(exp, [adapter], "pub-run", paths.root)
+
+    assert published, "experiment run did not trigger the rankings publish hook"

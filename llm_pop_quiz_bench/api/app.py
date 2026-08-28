@@ -432,9 +432,11 @@ def _run_experiment_and_record(
     run_id: str,
     runtime_root: Path,
 ) -> None:
-    """Background task: administer an operational-deception experiment and record
-    its cost. The engine finalizes run status itself; this only guards against a
-    crash before it could, and never touches the personality rankings."""
+    """Background task: administer an operational-deception experiment, record its
+    cost, then re-publish the public snapshot. The engine finalizes run status
+    itself; this only guards against a crash before it could. It writes no
+    personality-rankings data, but fires the same deploy hook as a benchmark run
+    so the baked deception.json snapshot refreshes with the new results."""
     runtime_paths = build_runtime_paths(runtime_root)
     database = connect(runtime_paths.db_path)
     log_path = runtime_paths.logs_dir / f"{run_id}.log"
@@ -457,6 +459,7 @@ def _run_experiment_and_record(
     finally:
         database.close()
     _record_run_cost(run_id, runtime_root)
+    _trigger_rankings_publish(runtime_root)
 
 
 def _report_only(run_id: str, runtime_root: Path) -> None:
