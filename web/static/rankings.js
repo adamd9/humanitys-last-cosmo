@@ -908,6 +908,7 @@ async function main() {
     nav.innerHTML =
       '<a href="/" data-dest="home">Home</a>' +
       VIEWS.map((v) => `<a href="#${v.id}" data-view="${v.id}">${v.label}</a>`).join("") +
+      '<a href="/ai-deception-rankings">Deception</a>' +
       ((window.FEATURES && window.FEATURES.createQuiz)
         ? '<a href="/" data-dest="app">Make your own</a>'
         : "");
