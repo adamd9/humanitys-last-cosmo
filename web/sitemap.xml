@@ -72,6 +72,24 @@
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  <url>
+    <loc>https://thelastquiz.net/ai-self-preservation</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thelastquiz.net/which-ai-lies-most</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://thelastquiz.net/ai-lies-to-protect-you</loc>
+    <lastmod>2026-08-30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
   <!-- DRIP QUEUE — un-comment each <url> on its publish date (also un-comment its card in
        web/blog.html, add the slug to scripts/build-pages.sh, and wire cross-links):
          2026-08-15  uncensored-ai-models

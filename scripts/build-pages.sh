@@ -52,7 +52,8 @@ cp "$web/rankings.html" "$dist/rankings/rankings.html"
 # SEO content pages: the guides hub, the blog hub + posts, and long-form articles,
 # served at clean URLs (e.g. /dark-triad-ai) exactly like rankings.html at /rankings.
 for f in guides blog dark-triad-ai big-five-ai mbti-ai ai-deception-experiment ai-deception-rankings \
-         chatgpt-psychosis is-chatgpt-a-psychopath is-ai-personality-real; do
+         chatgpt-psychosis is-chatgpt-a-psychopath is-ai-personality-real \
+         ai-self-preservation which-ai-lies-most ai-lies-to-protect-you; do
   cp "$web/$f.html" "$dist/rankings/$f.html"
 done
 # DRIP QUEUE — these articles are written & committed but held back (not built, not linked,
