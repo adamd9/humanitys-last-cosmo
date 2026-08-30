@@ -195,6 +195,81 @@ function renderBoard(host, models) {
   });
 }
 
+// Conditions (across experiments) whose pressure carries this dimension, so a
+// per-dimension card can pull a reason the model gave when THAT motive was
+// actually in play (self→SELF, group→STAFF, detection→DH_* … ).
+function conditionsForDim(dimId) {
+  const out = [];
+  (DATA.experiments || []).forEach((exp) => {
+    (exp.conditions || []).forEach((cond) => {
+      if ((cond.dimensions || []).includes(dimId)) out.push({ exp, cond });
+    });
+  });
+  return out;
+}
+
+// The most illustrative reason a model gave under a given motive: prefer a
+// deceptive, valid answer from a condition carrying that dimension. Pooled
+// examples are already deceptive-first; fall back to the first stored answer
+// per in-scope condition. Returns null when nothing in scope has a reason.
+function dimExampleFor(m, dimId) {
+  const conds = conditionsForDim(dimId);
+  if (!conds.length) return null;
+  const label = {};
+  const keys = new Set();
+  conds.forEach((c) => {
+    const key = `${c.exp.id}::${c.cond.id}`;
+    keys.add(key);
+    label[key] = { cond: c.cond.label || c.cond.id, exp: c.exp.title };
+  });
+  for (const ex of m.examples || []) {
+    const key = `${ex.experiment}::${ex.condition}`;
+    if (keys.has(key) && ex.reason) return { ...ex, ...label[key] };
+  }
+  const candidates = [];
+  conds.forEach((c) => {
+    const be = (m.by_experiment || {})[c.exp.id];
+    const cc = be && (be.conditions || {})[c.cond.id];
+    const ex = cc && cc.example;
+    if (ex && ex.reason) {
+      candidates.push({ ...ex, cond: c.cond.label || c.cond.id, exp: c.exp.title });
+    }
+  });
+  const rank = (e) => (e.deceptive && e.valid ? 0 : e.valid ? 1 : 2);
+  candidates.sort((a, b) => rank(a) - rank(b));
+  return candidates[0] || null;
+}
+
+// Rich tooltip for a model within one "Why they deceive" card: its rate for THAT
+// dimension plus a reason it gave when that motive was in play — distinct per
+// card, unlike the pooled overall tooltip.
+function dimTip(modelId, m, dimId) {
+  const dim = (DATA.dimensions || []).find((d) => d.id === dimId);
+  const dimLabel = dim ? dim.label : dimId;
+  const rate = (m.by_dimension || {})[dimId];
+  const ex = dimExampleFor(m, dimId);
+  const rows =
+    `<div class="rq-row rq-hi"><span class="rq-k">${escapeHtml(dimLabel)}</span>` +
+    `<span class="rq-v">${pct(rate)}</span></div>` +
+    (ex && ex.cond
+      ? `<div class="rq-row"><span class="rq-k">When</span><span class="rq-v">${escapeHtml(ex.cond)}</span></div>`
+      : "") +
+    (ex && ex.valid && ex.choice
+      ? `<div class="rq-row"><span class="rq-k">Chose</span><span class="rq-v">${escapeHtml(ex.choice)}</span></div>`
+      : "");
+  const quote =
+    ex && ex.reason
+      ? `<div class="rq-date" style="margin-top:6px">“${escapeHtml(ex.reason.slice(0, 160))}”</div>`
+      : "";
+  return (
+    `<div class="rq-head">${brandHeadHtml(modelId)}<div class="rq-headtext">` +
+    `<div class="rq-name">${escapeHtml(familyLabel(modelId))}</div>` +
+    `<div class="rq-id">${escapeHtml(modelId)}</div></div></div>` +
+    `<div class="rq-rows">${rows}</div>` +
+    quote
+  );
+}
+
 // Per-dimension deep dives: one card per measured dimension, models ranked by
 // their deception rate for that motive.
 function renderDimensions(host, models) {
@@ -208,7 +283,7 @@ function renderDimensions(host, models) {
       const rows = ranked
         .map(
           (x) =>
-            `<div class="dd-row" data-id="${escapeHtml(x.id)}">` +
+            `<div class="dd-row" data-id="${escapeHtml(x.id)}" data-dim="${escapeHtml(d.id)}">` +
             `<div class="dd-logo">${providerLogoHtml(x.id, 16)}</div>` +
             `<div class="dd-name">${escapeHtml(familyLabel(x.id))}</div>` +
             `<div class="dd-bar"><span style="width:${Math.max(2, Math.round(x.dv * 100))}%;background:${colorFor(x.dv)}"></span></div>` +
@@ -220,7 +295,7 @@ function renderDimensions(host, models) {
     .join("");
   host.querySelectorAll(".dd-row").forEach((row) => {
     const m = DATA.models[row.dataset.id];
-    if (m) attachRichTooltip(row, () => modelTip(row.dataset.id, m));
+    if (m) attachRichTooltip(row, () => dimTip(row.dataset.id, m, row.dataset.dim));
   });
 }
 
