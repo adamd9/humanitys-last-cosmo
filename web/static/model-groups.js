@@ -90,24 +90,24 @@ export function countryForModelId(modelId) {
 //     the whole list against the live catalogue — it loudly flags every null id
 //     and every id that has gone missing, and suggests that lab's newest models.
 //
-// Last reviewed: 2026-08-27 · source: Artificial Analysis Intelligence Index
+// Last reviewed: 2026-09-08 · source: Artificial Analysis Intelligence Index
 // leaderboard (https://artificialanalysis.ai/models) + provider announcements.
 // ===========================================================================
 export const FRONTIER_MODELS = [
   {
     lab: "OpenAI",
-    id: "openai/gpt-5.6-sol",
-    note: "GPT-5.6 Sol — #2 on the AA Intelligence Index (Terra/Luna/-pro are siblings)",
+    id: "openai/gpt-6-astra",
+    note: "GPT-6 Astra — joint leader on the AA Intelligence Index",
   },
   {
     lab: "Anthropic",
-    id: "anthropic/claude-opus-5",
-    note: "Claude Opus 5 — Anthropic's newest flagship on OpenRouter",
+    id: "anthropic/claude-fable-5.1",
+    note: "Claude Fable 5.1 — joint leader on the AA Intelligence Index",
   },
   {
     lab: "Google",
-    id: "google/gemini-3.1-pro-preview",
-    note: "Frontier 'Pro'. NB: Gemini 3.6 exists but is a Flash (cheap) tier, NOT frontier",
+    id: "google/gemini-3.8-flash",
+    note: "Gemini 3.8 Flash — Google's newest and highest-ranked current OpenRouter model",
   },
   {
     lab: "xAI",
@@ -121,8 +121,8 @@ export const FRONTIER_MODELS = [
   },
   {
     lab: "Alibaba",
-    id: "qwen/qwen3.8-max",
-    note: "Qwen3.8 Max — latest GA flagship in the Qwen3.8 series",
+    id: "qwen/qwen3.8-max-0902",
+    note: "Qwen3.8 Max 0902 — current OpenRouter build of Alibaba's flagship",
   },
   {
     lab: "DeepSeek",
@@ -152,7 +152,7 @@ export const FRONTIER_MODELS = [
 //     note the swap; if that newer build already appears in another row, leave
 //     this row id: null (documented) rather than duplicating it.
 //
-// Last reviewed: 2026-08-27 · source: https://lastexam.ai HLE-Rolling chart,
+// Last reviewed: 2026-09-08 · source: https://lastexam.ai HLE-Rolling chart,
 // backed by https://dashboard.safe.ai/api/models. The separate Scale SEAL
 // leaderboard is not the HLE-Rolling lineup and must not be substituted here.
 // NB: HLE-Rolling tracks FOUR Grok builds as distinct rows (Grok 4, Grok 4.2,
@@ -195,6 +195,8 @@ export const HLE_MODELS = [
   { name: "Muse Spark 1.1", sourceId: "muse-spark-1.1-high", id: "meta/muse-spark-1.1" },
   { name: "Kimi K3", sourceId: "kimi-k3-high", id: "moonshotai/kimi-k3" },
   { name: "Claude Opus 5", sourceId: "claude-opus-5-high", id: "anthropic/claude-opus-5" },
+  { name: "GLM 5.3", sourceId: "glm-5.3", id: "z-ai/glm-5.3" },
+  { name: "Claude Fable 5.1", sourceId: "claude-fable-5-1-high", id: "anthropic/claude-fable-5.1" },
 ];
 
 // ===========================================================================
@@ -247,7 +249,7 @@ export const OSS_MODELS = [
 //     possible, and refresh from the AA Intelligence Index every few months.
 //   • `node scripts/check-frontier-models.mjs` also validates these ids.
 //
-// Last reviewed: 2026-08-27 · source: Artificial Analysis Intelligence Index
+// Last reviewed: 2026-09-08 · source: Artificial Analysis Intelligence Index
 // v4.1 (https://artificialanalysis.ai/leaderboards/models).
 // ===========================================================================
 export const GLOBAL_LEADERS = [
@@ -255,8 +257,8 @@ export const GLOBAL_LEADERS = [
     region: "United States",
     flag: "🇺🇸",
     models: [
-      { name: "Claude Opus 5", id: "anthropic/claude-opus-5", note: "Anthropic — #1 on the AA Intelligence Index." },
-      { name: "GPT-5.6 Sol", id: "openai/gpt-5.6-sol", note: "OpenAI — #2 on the AA Intelligence Index." },
+      { name: "Claude Fable 5.1", id: "anthropic/claude-fable-5.1", note: "Anthropic — joint leader on the AA Intelligence Index." },
+      { name: "GPT-6 Astra", id: "openai/gpt-6-astra", note: "OpenAI — joint leader on the AA Intelligence Index." },
       { name: "Grok 4.6", id: "x-ai/grok-4.6", note: "xAI — newest Grok flagship; the US's third distinct frontier lab (Google's Gemini is a close runner-up)." },
     ],
   },
@@ -266,7 +268,7 @@ export const GLOBAL_LEADERS = [
     models: [
       { name: "Kimi K3", id: "moonshotai/kimi-k3", note: "Moonshot AI — the strongest non-US model and #1 open-weight worldwide." },
       { name: "GLM-5.3", id: "z-ai/glm-5.3", note: "Z.ai (Zhipu) — newest GLM generation on OpenRouter." },
-      { name: "Qwen3.8 Max", id: "qwen/qwen3.8-max", note: "Alibaba — latest GA flagship Qwen." },
+      { name: "Qwen3.8 Max 0902", id: "qwen/qwen3.8-max-0902", note: "Alibaba — current OpenRouter build of its flagship Qwen." },
     ],
   },
   {
