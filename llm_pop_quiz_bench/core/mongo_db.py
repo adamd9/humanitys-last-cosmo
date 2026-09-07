@@ -39,16 +39,26 @@ class MongoDatabase(DatabaseInterface):
         self._ensure_indexes()
 
     def _ensure_indexes(self) -> None:
-        """Create indexes for collections."""
-        self.quizzes.create_index("quiz_id", unique=True)
-        self.runs.create_index("run_id", unique=True)
-        self.runs.create_index("quiz_id")
-        self.runs.create_index("created_at")
-        self.results.create_index([("run_id", 1), ("model_id", 1)])
-        self.assets.create_index("run_id")
-        self.audit.create_index("ip")
-        self.audit.create_index("run_id")
-        self.outcomes.create_index("run_id")
+        """Create required indexes that are not already present."""
+        indexes = (
+            (self.quizzes, "quiz_id_1", "quiz_id", {"unique": True}),
+            (self.runs, "run_id_1", "run_id", {"unique": True}),
+            (self.runs, "quiz_id_1", "quiz_id", {}),
+            (self.runs, "created_at_1", "created_at", {}),
+            (self.results, "run_id_1_model_id_1", [("run_id", 1), ("model_id", 1)], {}),
+            (self.assets, "run_id_1", "run_id", {}),
+            (self.audit, "ip_1", "ip", {}),
+            (self.audit, "run_id_1", "run_id", {}),
+            (self.outcomes, "run_id_1", "run_id", {}),
+        )
+        known_by_collection = {}
+        for collection, name, keys, options in indexes:
+            collection_id = id(collection)
+            if collection_id not in known_by_collection:
+                known_by_collection[collection_id] = set(collection.index_information())
+            if name not in known_by_collection[collection_id]:
+                collection.create_index(keys, name=name, **options)
+                known_by_collection[collection_id].add(name)
 
     def close(self) -> None:
         """Close database connection."""

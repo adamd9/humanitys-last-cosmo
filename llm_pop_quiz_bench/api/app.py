@@ -180,9 +180,19 @@ def _format_conversion_error_detail(error: Exception, limit: int = 300) -> str:
 @app.on_event("startup")
 def cleanup_stale_runs() -> None:
     runtime_paths = get_runtime_paths()
-    db = connect(runtime_paths.db_path)
-    run_ids = db.mark_stale_runs_failed()
-    db.close()
+    db = None
+    try:
+        db = connect(runtime_paths.db_path)
+        run_ids = db.mark_stale_runs_failed()
+    except Exception as exc:
+        _append_server_log(
+            runtime_paths.logs_dir / "server.log",
+            f"startup stale-run cleanup skipped: {exc!r}",
+        )
+        return
+    finally:
+        if db is not None:
+            db.close()
     if run_ids:
         for run_id in run_ids:
             log_path = runtime_paths.logs_dir / f"{run_id}.log"

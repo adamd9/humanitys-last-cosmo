@@ -21,6 +21,31 @@ def test_health(client):
     assert resp.json()["status"] == "ok"
 
 
+def test_startup_cleanup_failure_does_not_prevent_boot(monkeypatch, tmp_path):
+    import importlib
+
+    api_app = importlib.import_module("llm_pop_quiz_bench.api.app")
+
+    class FailingDatabase:
+        closed = False
+
+        def mark_stale_runs_failed(self):
+            raise RuntimeError("database is read-only")
+
+        def close(self):
+            self.closed = True
+
+    database = FailingDatabase()
+    monkeypatch.setenv("LLM_POP_QUIZ_RUNTIME_DIR", str(tmp_path / "runtime-data"))
+    monkeypatch.setattr(api_app, "connect", lambda _: database)
+
+    api_app.cleanup_stale_runs()
+
+    assert database.closed is True
+    server_log = tmp_path / "runtime-data" / "logs" / "server.log"
+    assert "startup stale-run cleanup skipped" in server_log.read_text()
+
+
 def test_models(client):
     resp = client.get("/api/models")
     assert resp.status_code == 200
